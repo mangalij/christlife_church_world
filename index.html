@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#7C3AED" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="ChristLife" />
+  <meta name="description" content="Build your church. Grow your congregation. Change the world." />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <title>ChristLife World</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #1a0a2e; font-family: 'Nunito', sans-serif; }
+    canvas { display: block; }
+
+    /* ---- HUD ---- */
+    #hud-top {
+      position: absolute; top: 0; left: 0; right: 0;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 20px;
+      background: rgba(20,10,40,0.85);
+      color: #FFD700; font-family: 'Fredoka One', cursive;
+      font-size: 16px; z-index: 10;
+    }
+    #hud-bottom {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      padding: 10px 20px;
+      background: rgba(20,10,40,0.85);
+      color: #fff; font-size: 14px; z-index: 10;
+      display: flex; align-items: center; gap: 16px;
+    }
+    #quest-bar { flex: 1; }
+    #quest-progress {
+      height: 8px; background: #333; border-radius: 4px;
+      margin-top: 4px; overflow: hidden;
+    }
+    #quest-progress-fill {
+      height: 100%; background: #FFD700;
+      border-radius: 4px; transition: width 0.4s ease;
+    }
+
+    /* ---- Who's Here panel ---- */
+    #who-panel {
+      position: absolute; right: 0; top: 50px; bottom: 50px;
+      width: 200px; background: rgba(20,10,40,0.85);
+      color: #fff; padding: 12px; z-index: 10;
+      overflow-y: auto; display: none;
+    }
+    #who-panel h3 { color: #FFD700; font-family: 'Fredoka One', cursive; margin-bottom: 8px; }
+    .player-entry { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; }
+    .player-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ---- Chat ---- */
+    #chat-panel {
+      position: absolute; left: 10px; bottom: 60px;
+      width: 280px; z-index: 10;
+    }
+    #chat-messages {
+      background: rgba(20,10,40,0.75); color: #fff;
+      padding: 8px; border-radius: 8px 8px 0 0;
+      height: 140px; overflow-y: auto; font-size: 13px;
+    }
+    #chat-input-row { display: flex; }
+    #chat-input {
+      flex: 1; padding: 6px 10px; background: rgba(40,20,60,0.9);
+      border: 1px solid #7C3AED; color: #fff; font-size: 13px;
+      border-radius: 0 0 0 8px; outline: none;
+    }
+    #chat-send {
+      padding: 6px 12px; background: #7C3AED; color: #fff;
+      border: none; cursor: pointer; border-radius: 0 0 8px 0;
+      font-size: 13px;
+    }
+
+    /* ---- Dialogue ---- */
+    #dialogue-box {
+      position: absolute; left: 50%; bottom: 80px;
+      transform: translateX(-50%);
+      width: 520px; background: rgba(20,10,40,0.95);
+      border: 2px solid #7C3AED; border-radius: 12px;
+      padding: 20px 24px; color: #fff; z-index: 20; display: none;
+    }
+    #dialogue-npc-name {
+      color: #FFD700; font-family: 'Fredoka One', cursive;
+      font-size: 18px; margin-bottom: 10px;
+    }
+    #dialogue-text { font-size: 15px; line-height: 1.6; min-height: 60px; }
+    #dialogue-buttons { margin-top: 14px; display: flex; gap: 10px; }
+    #dialogue-next, #dialogue-close, #dialogue-quest {
+      padding: 8px 18px; border: none; border-radius: 8px;
+      cursor: pointer; font-size: 14px; font-family: 'Nunito', sans-serif;
+    }
+    #dialogue-next { background: #7C3AED; color: #fff; }
+    #dialogue-close { background: #333; color: #ccc; }
+    #dialogue-quest { background: #FFD700; color: #1a0a2e; font-weight: 700; display: none; }
+
+    /* ---- Toast ---- */
+    #toast {
+      position: absolute; bottom: 80px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #FFD700; color: #1a0a2e;
+      padding: 12px 24px; border-radius: 10px;
+      font-family: 'Fredoka One', cursive; font-size: 18px;
+      opacity: 0; transition: all 0.4s ease; z-index: 30;
+      pointer-events: none;
+    }
+
+    /* ---- Membership bar ---- */
+    #membership-bar {
+      position: absolute; top: 50px; left: 50%;
+      transform: translateX(-50%);
+      width: 300px; z-index: 10; text-align: center;
+    }
+    #membership-label { color: #FFD700; font-family: 'Fredoka One', cursive; font-size: 14px; }
+    #membership-progress {
+      height: 10px; background: #333; border-radius: 5px; margin-top: 4px;
+    }
+    #membership-fill {
+      height: 100%; background: linear-gradient(90deg, #7C3AED, #FFD700);
+      border-radius: 5px; transition: width 0.6s ease;
+    }
+
+    /* ---- Minigame modal ---- */
+    #minigame-modal {
+      position: absolute; inset: 0;
+      background: rgba(10,5,20,0.95);
+      z-index: 40; display: none;
+      flex-direction: column; align-items: center; justify-content: center;
+    }
+    #minigame-container {
+      background: #1a0a2e; border: 2px solid #7C3AED;
+      border-radius: 16px; padding: 32px; max-width: 640px; width: 90%;
+      color: #fff; position: relative;
+    }
+    #minigame-close {
+      position: absolute; top: 12px; right: 16px;
+      background: none; border: none; color: #ccc;
+      font-size: 22px; cursor: pointer;
+    }
+
+    /* ---- Character creation ---- */
+    #char-create {
+      position: absolute; inset: 0;
+      background: #0f0520;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 50; flex-direction: column; gap: 0;
+    }
+    #char-create h1 {
+      font-family: 'Fredoka One', cursive;
+      color: #FFD700; font-size: 42px; margin-bottom: 8px;
+    }
+    #char-create p { color: #ccc; margin-bottom: 24px; font-size: 15px; }
+    #char-form {
+      background: rgba(40,20,60,0.9); border: 1px solid #7C3AED;
+      border-radius: 16px; padding: 32px; width: 380px;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    #char-form label { color: #FFD700; font-size: 13px; font-weight: 700; }
+    #char-form input[type="text"] {
+      width: 100%; padding: 10px 14px; background: #1a0a2e;
+      border: 1px solid #7C3AED; border-radius: 8px;
+      color: #fff; font-size: 15px; outline: none;
+    }
+    .color-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    #char-form input[type="color"] {
+      width: 40px; height: 40px; border: none; border-radius: 8px;
+      cursor: pointer; background: none;
+    }
+    #char-form select {
+      flex: 1; padding: 8px 10px; background: #1a0a2e;
+      border: 1px solid #7C3AED; border-radius: 8px;
+      color: #fff; font-size: 14px; outline: none; min-width: 0;
+    }
+    .skin-swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+    .skin-sw {
+      width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
+      border: 2px solid transparent; transition: border-color 0.15s;
+    }
+    .skin-sw.selected { border-color: #FFD700; }
+    .toggle-row { display: flex; align-items: center; gap: 8px; color: #ccc; font-size: 13px; }
+    .toggle-row input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: #7C3AED; }
+    #char-preview { width: 100%; height: 160px; border-radius: 8px; margin-bottom: 4px; }
+    #enter-btn {
+      padding: 14px; background: #7C3AED; color: #fff;
+      border: none; border-radius: 10px;
+      font-family: 'Fredoka One', cursive; font-size: 20px;
+      cursor: pointer; transition: background 0.2s;
+    }
+    #enter-btn:hover { background: #9F67FF; }
+
+    /* ---- Revival overlay ---- */
+    #revival-overlay {
+      position: absolute; inset: 0; background: rgba(255,215,0,0.15);
+      z-index: 35; display: none; pointer-events: none;
+      align-items: center; justify-content: center;
+    }
+    #revival-text {
+      font-family: 'Fredoka One', cursive; font-size: 72px;
+      color: #FFD700; text-shadow: 0 0 40px #FFD700;
+      animation: pulse 0.5s infinite alternate;
+    }
+    @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.05); } }
+
+    /* ---- Controls hint ---- */
+    #controls-hint {
+      position: absolute; top: 55px; left: 10px;
+      color: rgba(255,255,255,0.5); font-size: 12px; z-index: 10;
+      line-height: 1.8;
+    }
+
+    /* ---- PWA Install Banner ---- */
+    #pwa-banner {
+      position: absolute; bottom: 60px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(124,58,237,0.95); color: #fff;
+      padding: 12px 20px; border-radius: 12px;
+      display: none; align-items: center; gap: 12px;
+      z-index: 25; border: 1px solid #9F67FF;
+      font-size: 14px; max-width: 340px; width: 90%;
+      backdrop-filter: blur(8px);
+    }
+    #pwa-banner-text { flex: 1; line-height: 1.4; }
+    #pwa-banner-text strong { font-family: 'Fredoka One', cursive; color: #FFD700; }
+    #pwa-install-btn {
+      padding: 8px 16px; background: #FFD700; color: #1a0a2e;
+      border: none; border-radius: 8px; cursor: pointer;
+      font-family: 'Fredoka One', cursive; font-size: 14px;
+      white-space: nowrap;
+    }
+    #pwa-dismiss-btn {
+      background: none; border: none; color: #ccc;
+      cursor: pointer; font-size: 18px; padding: 0 4px;
+    }
+
+    /* ---- Mobile virtual controls ---- */
+    #mobile-controls {
+      display: none;
+      position: absolute; inset: 0;
+      pointer-events: none; z-index: 15;
+    }
+    #joystick-zone {
+      position: absolute; bottom: 80px; left: 20px;
+      width: 140px; height: 140px; pointer-events: all;
+    }
+    #action-buttons {
+      position: absolute; bottom: 80px; right: 20px;
+      display: flex; flex-direction: column;
+      gap: 12px; pointer-events: all;
+    }
+    .mobile-btn {
+      width: 56px; height: 56px; border-radius: 50%;
+      border: 3px solid rgba(255,255,255,0.4);
+      background: rgba(124,58,237,0.75); color: #FFD700;
+      font-size: 22px; display: flex; align-items: center;
+      justify-content: center; font-family: 'Fredoka One', cursive;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      user-select: none; backdrop-filter: blur(4px);
+      pointer-events: all;
+    }
+    .mobile-btn:active { background: rgba(159,103,255,0.9); transform: scale(0.93); }
+    #btn-jump {
+      position: absolute; bottom: 80px; right: 100px;
+      width: 56px; height: 56px; pointer-events: all;
+    }
+    #btn-interact {
+      position: absolute; bottom: 150px; right: 20px;
+      display: none; pointer-events: all;
+      background: rgba(255,215,0,0.85); color: #1a0a2e;
+      width: 64px; height: 64px;
+    }
+    #btn-holy {
+      position: absolute; bottom: 150px; right: 100px;
+      display: none; pointer-events: all;
+      background: linear-gradient(135deg,#5BC0FB,#1A6FBA);
+      color: #fff; border-color: #FFD700;
+      width: 64px; height: 64px;
+      animation: holy-pulse 1.2s infinite;
+    }
+    @keyframes holy-pulse {
+      0%,100% { box-shadow: 0 0 6px rgba(155,214,255,0.6); }
+      50%     { box-shadow: 0 0 22px rgba(255,255,255,0.95); }
+    }
+    /* Actions popup — opens above the ☰ button with a grid of gestures */
+    #actions-popup {
+      position: absolute;
+      bottom: 150px; right: 20px;
+      display: none;
+      grid-template-columns: repeat(2, 56px);
+      gap: 10px;
+      padding: 10px;
+      background: rgba(20,10,40,0.92);
+      border: 2px solid #FFD700;
+      border-radius: 16px;
+      pointer-events: all;
+      backdrop-filter: blur(6px);
+      z-index: 16;
+    }
+    #actions-popup .mobile-btn {
+      background: rgba(124,58,237,0.85);
+      font-size: 18px;
+    }
+    #cam-hint {
+      position: absolute; top: 60px; left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.4); font-size: 12px; pointer-events: none;
+    }
+
+    /* ---- Rotate prompt ---- */
+    #rotate-prompt {
+      display: none; position: fixed; inset: 0;
+      background: #0f0520; z-index: 100;
+      align-items: center; justify-content: center;
+      flex-direction: column; color: #FFD700;
+      font-family: 'Fredoka One', cursive; text-align: center;
+    }
+
+    /* ---- Responsive mobile HUD ---- */
+    @media (max-width: 768px) {
+      #hud-top { font-size: 12px; padding: 6px 10px; }
+      #membership-bar { width: 180px; }
+      #chat-panel { width: 200px; bottom: 60px; }
+      #dialogue-box { width: 90%; bottom: 70px; font-size: 13px; }
+      #who-panel { width: 160px; font-size: 12px; }
+      #minigame-container { padding: 20px 16px; }
+      #char-form { width: 90%; max-width: 380px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Character Creation Screen -->
+  <div id="char-create">
+    <h1>⛪ ChristLife World</h1>
+    <p>Build your church. Grow your congregation. Change the world.</p>
+    <div id="char-form">
+      <label>Church Name</label>
+      <input type="text" id="church-name-input" placeholder="e.g. ChristLife Church" maxlength="30" />
+      <label>Your Name</label>
+      <input type="text" id="player-name-input" placeholder="e.g. PastorJay" maxlength="20" />
+
+      <label>Skin Tone</label>
+      <div id="skin-swatches" class="skin-swatches"></div>
+
+      <label>Hair</label>
+      <div class="color-row">
+        <select id="hair-style">
+          <option value="short">Short</option>
+          <option value="long">Long</option>
+          <option value="afro">Afro</option>
+          <option value="cap">Cap</option>
+          <option value="none">Bald</option>
+        </select>
+        <input type="color" id="hair-color" value="#3a2718" />
+      </div>
+
+      <label>Shirt &amp; Pants</label>
+      <div class="color-row">
+        <input type="color" id="shirt-color" value="#7C3AED" title="Shirt color" />
+        <input type="color" id="pants-color" value="#1a0a2e" title="Pants color" />
+        <input type="color" id="shoe-color"  value="#222222" title="Shoe color"  />
+      </div>
+
+      <label>Jacket</label>
+      <div class="color-row">
+        <div class="toggle-row">
+          <input type="checkbox" id="jacket-on" />
+          <label for="jacket-on" style="color:#ccc;font-weight:normal;">Wear jacket</label>
+        </div>
+        <input type="color" id="jacket-color" value="#222244" />
+      </div>
+
+      <canvas id="char-preview"></canvas>
+      <button id="enter-btn">Enter the World →</button>
+    </div>
+  </div>
+
+  <!-- Game HUD -->
+  <div id="hud-top" style="display:none;">
+    <span id="church-name-display" style="font-size:20px;">⛪ ChristLife World</span>
+    <span>Members: <span id="member-count">12</span></span>
+    <span>XP: <span id="xp-count">0</span></span>
+    <span>Role: <span id="player-role">Guest</span></span>
+    <span style="cursor:pointer;" title="Beautify the church (B)" onclick="toggleAestheticsPanel && toggleAestheticsPanel()">✨</span>
+    <span style="cursor:pointer;" onclick="toggleWhoPanel()">👥</span>
+    <span style="cursor:pointer;" onclick="toggleControls()">❓</span>
+  </div>
+
+  <div id="membership-bar" style="display:none;">
+    <div id="membership-label">Next Milestone: 20 members</div>
+    <div id="membership-progress"><div id="membership-fill" style="width:60%"></div></div>
+  </div>
+
+  <div id="controls-hint" style="display:none;">
+    WASD — Move<br>
+    Space — Jump<br>
+    Shift — Sprint<br>
+    E — Interact / Sit<br>
+    Q — Worship (on stage)<br>
+    G — Wave · H — Praise / Holy Water<br>
+    P — Pray · R — Read Bible<br>
+    T — Eat (in Fellowship Hall)<br>
+    V — Camera (3rd / Selfie / 1st)<br>
+    B — Beautify Church (upgrades)<br>
+    F — Drive Car<br>
+    Tab — Players<br>
+    Enter — Chat<br>
+    <span style="color:#FFD700;">📱 Mobile:</span> Joystick + tap ✨ for actions
+  </div>
+
+  <div id="hud-bottom" style="display:none;">
+    <div id="quest-bar">
+      <div id="quest-name">Quest: Talk to Pastor James</div>
+      <div id="quest-progress"><div id="quest-progress-fill" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <div id="who-panel">
+    <h3>👥 Who's Here</h3>
+    <div id="who-list"></div>
+  </div>
+
+  <div id="chat-panel" style="display:none;">
+    <div id="chat-messages"></div>
+    <div id="chat-input-row">
+      <input type="text" id="chat-input" placeholder="Press Enter to chat..." maxlength="100" />
+      <button id="chat-send">Send</button>
+    </div>
+  </div>
+
+  <div id="dialogue-box">
+    <div id="dialogue-npc-name">NPC Name</div>
+    <div id="dialogue-text"></div>
+    <div id="dialogue-buttons">
+      <button id="dialogue-next">Next</button>
+      <button id="dialogue-quest">Accept Quest!</button>
+      <button id="dialogue-close">Close</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <div id="minigame-modal">
+    <div id="minigame-container">
+      <button id="minigame-close">✕</button>
+      <div id="minigame-content"></div>
+    </div>
+  </div>
+
+  <div id="revival-overlay">
+    <div id="revival-text">🔥 REVIVAL! 🔥</div>
+  </div>
+
+  <!-- PWA Install Banner -->
+  <div id="pwa-banner">
+    <div id="pwa-banner-text">
+      <strong>Install ChristLife World</strong><br>
+      Play offline, add to home screen!
+    </div>
+    <button id="pwa-install-btn">Install</button>
+    <button id="pwa-dismiss-btn">✕</button>
+  </div>
+
+  <!-- Mobile Controls -->
+  <div id="mobile-controls">
+    <div id="joystick-zone"></div>
+    <div id="action-buttons">
+      <div class="mobile-btn" id="btn-actions" title="Actions">✨</div>
+      <div class="mobile-btn" id="btn-sprint" title="Sprint">⚡</div>
+      <div class="mobile-btn" id="btn-camera" title="Camera">👁</div>
+      <div class="mobile-btn" id="btn-players" title="Players">👥</div>
+      <div class="mobile-btn" id="btn-chat" title="Chat">💬</div>
+    </div>
+    <div class="mobile-btn" id="btn-jump" style="position:absolute;">↑</div>
+    <div class="mobile-btn" id="btn-interact" style="position:absolute;">E</div>
+    <div class="mobile-btn" id="btn-holy" style="position:absolute;" title="Sprinkle Holy Water">💧</div>
+
+    <!-- Actions popup (opens above the ✨ button) -->
+    <div id="actions-popup">
+      <div class="mobile-btn" data-key="KeyQ" title="Worship (on stage)">🎤</div>
+      <div class="mobile-btn" data-key="KeyP" title="Pray">🙏</div>
+      <div class="mobile-btn" data-key="KeyR" title="Read Bible">📖</div>
+      <div class="mobile-btn" data-key="KeyG" title="Wave">👋</div>
+      <div class="mobile-btn" data-key="KeyH" title="Praise">🙌</div>
+      <div class="mobile-btn" data-key="KeyT" title="Eat">🍞</div>
+      <div class="mobile-btn" data-key="KeyB" title="Beautify Church">🏛</div>
+      <div class="mobile-btn" data-key="KeyF" title="Enter Car / Drive">🚗</div>
+    </div>
+
+    <div id="cam-hint">Drag right side to look around</div>
+  </div>
+
+  <!-- Rotate Prompt -->
+  <div id="rotate-prompt">
+    <div style="font-size:48px;margin-bottom:16px;">📱➡️</div>
+    <div style="font-size:24px;">Rotate to Landscape</div>
+    <div style="font-size:14px;color:#ccc;margin-top:8px;font-family:'Nunito',sans-serif;">
+      ChristLife World plays best in landscape mode</div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
