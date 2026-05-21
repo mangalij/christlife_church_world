@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#7C3AED" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -14,7 +14,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { overflow: hidden; background: #1a0a2e; font-family: 'Nunito', sans-serif; }
+    html, body { width: 100%; height: 100%; }
+    body {
+      overflow: hidden; background: #1a0a2e; font-family: 'Nunito', sans-serif;
+      /* Prevent iOS Safari rubber-band / accidental zoom while playing */
+      touch-action: manipulation;
+      -webkit-text-size-adjust: 100%;
+    }
     canvas { display: block; }
 
     /* ---- HUD ---- */
@@ -144,20 +150,29 @@
 
     /* ---- Character creation ---- */
     #char-create {
-      position: absolute; inset: 0;
+      position: fixed; inset: 0;
       background: #0f0520;
-      display: flex; align-items: center; justify-content: center;
+      display: flex; align-items: flex-start; justify-content: center;
       z-index: 50; flex-direction: column; gap: 0;
+      /* Allow vertical scrolling so the Enter button is always reachable
+         on short landscape phones. */
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
+      align-items: center;
     }
     #char-create h1 {
       font-family: 'Fredoka One', cursive;
       color: #FFD700; font-size: 42px; margin-bottom: 8px;
+      text-align: center;
     }
-    #char-create p { color: #ccc; margin-bottom: 24px; font-size: 15px; }
+    #char-create p { color: #ccc; margin-bottom: 24px; font-size: 15px; text-align: center; }
     #char-form {
       background: rgba(40,20,60,0.9); border: 1px solid #7C3AED;
-      border-radius: 16px; padding: 32px; width: 380px;
+      border-radius: 16px; padding: 32px; width: 380px; max-width: 100%;
       display: flex; flex-direction: column; gap: 16px;
+      flex-shrink: 0;
     }
     #char-form label { color: #FFD700; font-size: 13px; font-weight: 700; }
     #char-form input[type="text"] {
@@ -183,7 +198,11 @@
     .skin-sw.selected { border-color: #FFD700; }
     .toggle-row { display: flex; align-items: center; gap: 8px; color: #ccc; font-size: 13px; }
     .toggle-row input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: #7C3AED; }
-    #char-preview { width: 100%; height: 160px; border-radius: 8px; margin-bottom: 4px; }
+    #char-preview {
+      width: 100% !important; height: 160px;
+      max-width: 320px; align-self: center;
+      border-radius: 8px; margin-bottom: 4px;
+    }
     #enter-btn {
       padding: 14px; background: #7C3AED; color: #fff;
       border: none; border-radius: 10px;
@@ -239,15 +258,21 @@
     /* ---- Mobile virtual controls ---- */
     #mobile-controls {
       display: none;
-      position: absolute; inset: 0;
+      position: fixed; inset: 0;
       pointer-events: none; z-index: 15;
+      /* Respect notch/home-indicator on iOS */
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
     }
     #joystick-zone {
-      position: absolute; bottom: 80px; left: 20px;
+      position: absolute; bottom: calc(70px + env(safe-area-inset-bottom));
+      left: calc(20px + env(safe-area-inset-left));
       width: 140px; height: 140px; pointer-events: all;
     }
     #action-buttons {
-      position: absolute; bottom: 80px; right: 20px;
+      position: absolute; bottom: calc(70px + env(safe-area-inset-bottom));
+      right: calc(20px + env(safe-area-inset-right));
       display: flex; flex-direction: column;
       gap: 12px; pointer-events: all;
     }
@@ -263,17 +288,20 @@
     }
     .mobile-btn:active { background: rgba(159,103,255,0.9); transform: scale(0.93); }
     #btn-jump {
-      position: absolute; bottom: 80px; right: 100px;
+      position: absolute; bottom: calc(70px + env(safe-area-inset-bottom));
+      right: calc(100px + env(safe-area-inset-right));
       width: 56px; height: 56px; pointer-events: all;
     }
     #btn-interact {
-      position: absolute; bottom: 150px; right: 20px;
+      position: absolute; bottom: calc(140px + env(safe-area-inset-bottom));
+      right: calc(20px + env(safe-area-inset-right));
       display: none; pointer-events: all;
       background: rgba(255,215,0,0.85); color: #1a0a2e;
       width: 64px; height: 64px;
     }
     #btn-holy {
-      position: absolute; bottom: 150px; right: 100px;
+      position: absolute; bottom: calc(140px + env(safe-area-inset-bottom));
+      right: calc(100px + env(safe-area-inset-right));
       display: none; pointer-events: all;
       background: linear-gradient(135deg,#5BC0FB,#1A6FBA);
       color: #fff; border-color: #FFD700;
@@ -287,7 +315,8 @@
     /* Actions popup — opens above the ☰ button with a grid of gestures */
     #actions-popup {
       position: absolute;
-      bottom: 150px; right: 20px;
+      bottom: calc(140px + env(safe-area-inset-bottom));
+      right: calc(20px + env(safe-area-inset-right));
       display: none;
       grid-template-columns: repeat(2, 56px);
       gap: 10px;
@@ -298,6 +327,8 @@
       pointer-events: all;
       backdrop-filter: blur(6px);
       z-index: 16;
+      max-height: 70vh;
+      overflow-y: auto;
     }
     #actions-popup .mobile-btn {
       background: rgba(124,58,237,0.85);
@@ -320,13 +351,59 @@
 
     /* ---- Responsive mobile HUD ---- */
     @media (max-width: 768px) {
-      #hud-top { font-size: 12px; padding: 6px 10px; }
-      #membership-bar { width: 180px; }
-      #chat-panel { width: 200px; bottom: 60px; }
-      #dialogue-box { width: 90%; bottom: 70px; font-size: 13px; }
-      #who-panel { width: 160px; font-size: 12px; }
-      #minigame-container { padding: 20px 16px; }
-      #char-form { width: 90%; max-width: 380px; }
+      #hud-top {
+        font-size: 11px; padding: 6px 10px; gap: 6px;
+        flex-wrap: wrap; justify-content: flex-start;
+      }
+      #hud-top > span { white-space: nowrap; }
+      #membership-bar { width: 60%; max-width: 220px; top: auto; }
+      #chat-panel { width: 70%; max-width: 240px; bottom: 60px; }
+      #chat-messages { height: 90px; }
+      #dialogue-box {
+        width: calc(100% - 20px); left: 10px; right: 10px;
+        transform: none; bottom: 80px; font-size: 13px;
+        padding: 14px 16px; max-height: 60vh; overflow-y: auto;
+      }
+      #dialogue-buttons { flex-wrap: wrap; }
+      #who-panel { width: 70%; max-width: 220px; font-size: 12px; top: 60px; bottom: 70px; }
+      #minigame-container {
+        padding: 18px 14px; width: 95%; max-height: 90vh; overflow-y: auto;
+      }
+      #char-form { width: 100%; max-width: 380px; padding: 20px; gap: 12px; }
+      #char-create h1 { font-size: 32px; }
+      #char-create p { margin-bottom: 14px; font-size: 13px; }
+      #controls-hint { display: none !important; }
+      #toast { bottom: 110px; font-size: 14px; padding: 10px 18px; }
+      #pwa-banner { bottom: 100px; }
+    }
+
+    /* Short viewports (landscape phones, foldables). Trigger by HEIGHT so
+       wide landscape phones (>768px) still get the compact form. */
+    @media (max-height: 560px) {
+      #char-create { padding: 12px 12px calc(12px + env(safe-area-inset-bottom)); }
+      #char-create h1 { font-size: 22px; margin-bottom: 2px; }
+      #char-create p { font-size: 12px; margin-bottom: 8px; }
+      #char-form {
+        width: 100%; max-width: 520px; padding: 14px 18px; gap: 8px;
+        border-radius: 12px;
+      }
+      #char-form label { font-size: 11px; }
+      #char-form input[type="text"] { padding: 6px 10px; font-size: 13px; }
+      #char-form select { padding: 6px 8px; font-size: 12px; }
+      #char-form input[type="color"] { width: 32px; height: 32px; }
+      .skin-sw { width: 24px; height: 24px; }
+      #char-preview { height: 90px !important; }
+      #enter-btn { padding: 10px; font-size: 16px; }
+      #hud-top { font-size: 10px; padding: 4px 8px; }
+      #controls-hint { display: none !important; }
+      #dialogue-box { bottom: 70px; padding: 10px 14px; max-height: 55vh; }
+      #minigame-container { padding: 14px; max-height: 92vh; }
+    }
+
+    /* Very narrow phones */
+    @media (max-width: 400px) {
+      #hud-top > span:nth-child(4) { display: none; } /* hide Role */
+      #membership-bar { width: 50%; }
     }
   </style>
 </head>
