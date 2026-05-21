@@ -55,6 +55,9 @@
       width: 200px; background: rgba(20,10,40,0.85);
       color: #fff; padding: 12px; z-index: 10;
       overflow-y: auto; display: none;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
     }
     #who-panel h3 { color: #FFD700; font-family: 'Fredoka One', cursive; margin-bottom: 8px; }
     .player-entry { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; }
@@ -69,6 +72,9 @@
       background: rgba(20,10,40,0.75); color: #fff;
       padding: 8px; border-radius: 8px 8px 0 0;
       height: 140px; overflow-y: auto; font-size: 13px;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
     }
     #chat-input-row { display: flex; }
     #chat-input {
@@ -84,11 +90,17 @@
 
     /* ---- Dialogue ---- */
     #dialogue-box {
-      position: absolute; left: 50%; bottom: 80px;
+      position: fixed; left: 50%; bottom: 80px;
       transform: translateX(-50%);
-      width: 520px; background: rgba(20,10,40,0.95);
+      width: 520px; max-width: calc(100% - 20px);
+      max-height: 70vh;
+      background: rgba(20,10,40,0.95);
       border: 2px solid #7C3AED; border-radius: 12px;
       padding: 20px 24px; color: #fff; z-index: 20; display: none;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
     }
     #dialogue-npc-name {
       color: #FFD700; font-family: 'Fredoka One', cursive;
@@ -132,47 +144,77 @@
 
     /* ---- Minigame modal ---- */
     #minigame-modal {
-      position: absolute; inset: 0;
+      position: fixed; inset: 0;
       background: rgba(10,5,20,0.95);
       z-index: 40; display: none;
-      flex-direction: column; align-items: center; justify-content: center;
+      /* Scrollable overlay — flex centering is applied via the
+         ::before spacer trick so tall content still scrolls. */
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+      padding:
+        calc(20px + env(safe-area-inset-top))
+        16px
+        calc(20px + env(safe-area-inset-bottom));
+      text-align: center;
+    }
+    /* When shown via JS (display:flex), behave as a centered block by
+       neutralising flex so the inner container can grow & scroll. */
+    #minigame-modal[style*="display: flex"],
+    #minigame-modal[style*="display:flex"] {
+      display: block !important;
     }
     #minigame-container {
       background: #1a0a2e; border: 2px solid #7C3AED;
       border-radius: 16px; padding: 32px; max-width: 640px; width: 90%;
       color: #fff; position: relative;
+      margin: 0 auto;
+      text-align: left;
+      touch-action: pan-y;
     }
+    #minigame-content { touch-action: pan-y; }
     #minigame-close {
       position: absolute; top: 12px; right: 16px;
       background: none; border: none; color: #ccc;
       font-size: 22px; cursor: pointer;
+      /* Bigger tap target on mobile */
+      width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 2;
     }
 
     /* ---- Character creation ---- */
     #char-create {
       position: fixed; inset: 0;
       background: #0f0520;
-      display: flex; align-items: flex-start; justify-content: center;
-      z-index: 50; flex-direction: column; gap: 0;
-      /* Allow vertical scrolling so the Enter button is always reachable
-         on short landscape phones. */
+      z-index: 50;
+      /* Plain block scroll container — far more reliable on mobile than
+         flex centering, which can clip overflow and break touch-scroll. */
       overflow-y: auto;
+      overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior: contain;
-      padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
-      align-items: center;
+      touch-action: pan-y;
+      padding:
+        calc(24px + env(safe-area-inset-top))
+        16px
+        calc(40px + env(safe-area-inset-bottom));
+      text-align: center;
     }
     #char-create h1 {
       font-family: 'Fredoka One', cursive;
       color: #FFD700; font-size: 42px; margin-bottom: 8px;
-      text-align: center;
     }
-    #char-create p { color: #ccc; margin-bottom: 24px; font-size: 15px; text-align: center; }
+    #char-create p { color: #ccc; margin-bottom: 24px; font-size: 15px; }
     #char-form {
       background: rgba(40,20,60,0.9); border: 1px solid #7C3AED;
       border-radius: 16px; padding: 32px; width: 380px; max-width: 100%;
       display: flex; flex-direction: column; gap: 16px;
-      flex-shrink: 0;
+      margin: 0 auto;
+      text-align: left;
+    }
     }
     #char-form label { color: #FFD700; font-size: 13px; font-weight: 700; }
     #char-form input[type="text"] {
@@ -202,6 +244,10 @@
       width: 100% !important; height: 160px;
       max-width: 320px; align-self: center;
       border-radius: 8px; margin-bottom: 4px;
+      /* Don't let the WebGL preview swallow vertical touch gestures
+         that the user needs to scroll the form. */
+      touch-action: pan-y;
+      pointer-events: none;
     }
     #enter-btn {
       padding: 14px; background: #7C3AED; color: #fff;
@@ -398,6 +444,46 @@
       #controls-hint { display: none !important; }
       #dialogue-box { bottom: 70px; padding: 10px 14px; max-height: 55vh; }
       #minigame-container { padding: 14px; max-height: 92vh; }
+
+      /* On short landscape phones the vertical column of action buttons
+         (5 x 56px + gaps = ~328px) gets clipped off the top of the
+         viewport. Lay them out horizontally along the top-right instead
+         and shrink them so ✨ is always visible. */
+      #action-buttons {
+        flex-direction: row;
+        bottom: auto;
+        top: calc(40px + env(safe-area-inset-top));
+        right: calc(10px + env(safe-area-inset-right));
+        gap: 6px;
+      }
+      #action-buttons .mobile-btn {
+        width: 42px; height: 42px; font-size: 18px;
+        border-width: 2px;
+      }
+      /* Re-anchor the popup so it opens UNDER the now-top-right row */
+      #actions-popup {
+        bottom: auto;
+        top: calc(90px + env(safe-area-inset-top));
+        right: calc(10px + env(safe-area-inset-right));
+        grid-template-columns: repeat(4, 48px);
+      }
+      #actions-popup .mobile-btn { width: 48px; height: 48px; font-size: 16px; }
+      /* Shrink joystick + jump so they don't dominate the small screen */
+      #joystick-zone {
+        width: 110px; height: 110px;
+        bottom: calc(60px + env(safe-area-inset-bottom));
+      }
+      #btn-jump {
+        width: 50px; height: 50px;
+        bottom: calc(60px + env(safe-area-inset-bottom));
+        right: calc(80px + env(safe-area-inset-right));
+      }
+      #btn-interact, #btn-holy {
+        width: 56px; height: 56px;
+        bottom: calc(120px + env(safe-area-inset-bottom));
+      }
+      #btn-holy { right: calc(80px + env(safe-area-inset-right)); }
+      #cam-hint { display: none; }
     }
 
     /* Very narrow phones */
