@@ -354,6 +354,19 @@
       width: 64px; height: 64px;
       animation: holy-pulse 1.2s infinite;
     }
+    /* Driving controls — only visible while inside a vehicle. */
+    #btn-brake {
+      position: absolute; bottom: calc(70px + env(safe-area-inset-bottom));
+      right: calc(170px + env(safe-area-inset-right));
+      width: 64px; height: 64px; pointer-events: all;
+      background: rgba(220,40,40,0.85); color: #fff;
+    }
+    #btn-exit-car {
+      position: absolute; bottom: calc(140px + env(safe-area-inset-bottom));
+      right: calc(170px + env(safe-area-inset-right));
+      width: 64px; height: 64px; pointer-events: all;
+      background: rgba(255,215,0,0.85); color: #1a0a2e;
+    }
     @keyframes holy-pulse {
       0%,100% { box-shadow: 0 0 6px rgba(155,214,255,0.6); }
       50%     { box-shadow: 0 0 22px rgba(255,255,255,0.95); }
@@ -640,6 +653,8 @@
     <div class="mobile-btn" id="btn-jump" style="position:absolute;">↑</div>
     <div class="mobile-btn" id="btn-interact" style="position:absolute;">E</div>
     <div class="mobile-btn" id="btn-holy" style="position:absolute;" title="Sprinkle Holy Water">💧</div>
+    <div class="mobile-btn" id="btn-brake" style="position:absolute;display:none;" title="Brake">🛑</div>
+    <div class="mobile-btn" id="btn-exit-car" style="position:absolute;display:none;" title="Exit Car">🚪</div>
 
     <!-- Actions popup (opens above the ✨ button) -->
     <div id="actions-popup">

@@ -120,14 +120,11 @@ export function initMobileControls() {
 
   document.getElementById("btn-interact").addEventListener("touchstart", e => {
     e.preventDefault();
-    if (window.__nearNPC) {
-      const npc = window.__nearNPC;
-      const action = npc.data.witness
-        ? () => import("./witnessing.js").then(m => m.openWitnessing(npc))
-        : npc.data.action;
-      openDialogue(npc.data.name, npc.data.dialogue, action,
-        npc.data.quest, () => { npc.interacted = true; npc.justTalked = true; });
-    }
+    // Dispatch a synthetic KeyE so every E-listening system reacts
+    // identically: NPCs (npc.js), tithe box (wolves.js), sitting,
+    // fountain, baptism, garden, pet, playground, basketball, etc.
+    window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyE", key: "e" }));
+    window.dispatchEvent(new KeyboardEvent("keyup",   { code: "KeyE", key: "e" }));
   }, { passive: false });
 
   // Actions popup — toggles a grid of gesture buttons.
@@ -159,6 +156,32 @@ export function initMobileControls() {
     e.preventDefault();
     sendKey("KeyH");
   }, { passive: false });
+
+  // Driving controls — visibility toggled by vehicle.js on enter/exit.
+  // Brake fires Space (continuous while held); Exit fires F.
+  const btnBrake = document.getElementById("btn-brake");
+  btnBrake.addEventListener("touchstart", e => {
+    e.preventDefault();
+    window.dispatchEvent(new KeyboardEvent("keydown", { code: "Space", key: " " }));
+  }, { passive: false });
+  btnBrake.addEventListener("touchend", e => {
+    e.preventDefault();
+    window.dispatchEvent(new KeyboardEvent("keyup", { code: "Space", key: " " }));
+  }, { passive: false });
+  document.getElementById("btn-exit-car").addEventListener("touchstart", e => {
+    e.preventDefault();
+    sendKey("KeyF");
+  }, { passive: false });
+}
+
+export function setDrivingControlsVisible(visible) {
+  const brake = document.getElementById("btn-brake");
+  const exit  = document.getElementById("btn-exit-car");
+  const jump  = document.getElementById("btn-jump");
+  if (brake) brake.style.display = visible ? "flex" : "none";
+  if (exit)  exit.style.display  = visible ? "flex" : "none";
+  // Hide jump while driving — it's meaningless in a car.
+  if (jump)  jump.style.display  = visible ? "none" : "flex";
 }
 
 export function setInteractButtonVisible(visible) {

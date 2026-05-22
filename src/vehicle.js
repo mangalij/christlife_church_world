@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import { showToast } from "./ui.js";
 import { addMember } from "./growth.js";
+import { mobileInput, setDrivingControlsVisible } from "./player.js";
 
 const cars = [];
 let activeCar = null;
@@ -244,7 +245,8 @@ function tryEnterNearestCar() {
   if (!nearest) return;
   activeCar = nearest;
   playerRef.group.visible = false;
-  showToast("🚗 Driving — WASD to steer, Space to brake, F to exit");
+  setDrivingControlsVisible(true);
+  showToast("🚗 Driving — WASD / joystick to steer, 🛑 brake, 🚪 exit");
 }
 
 function exitCar() {
@@ -259,6 +261,7 @@ function exitCar() {
   playerRef.group.visible = true;
   activeCar.velocity = 0;
   activeCar = null;
+  setDrivingControlsVisible(false);
   if (parkOverlay) parkOverlay.style.display = "none";
   showToast("🚶 Back on foot");
 }
@@ -293,6 +296,16 @@ export function updateVehicles(camera, delta, colliders) {
   let steer = 0;
   if (carKeys["KeyA"] || carKeys["ArrowLeft"])  steer = 1;
   if (carKeys["KeyD"] || carKeys["ArrowRight"]) steer = -1;
+  // Mobile joystick fallback — pushing up drives forward, down reverses,
+  // left/right steer. Only used when keys aren't already providing input.
+  if (throttle === 0 && mobileInput) {
+    const my = -mobileInput.moveY; // joystick up is negative Y
+    if (Math.abs(my) > 0.15) throttle = my > 0 ? Math.min(1, my) : Math.max(-0.7, my * 0.7);
+  }
+  if (steer === 0 && mobileInput) {
+    const mx = mobileInput.moveX;
+    if (Math.abs(mx) > 0.15) steer = -mx; // car steer convention: left = +1
+  }
   const braking = carKeys["Space"];
   const boost = (carKeys["ShiftLeft"] || carKeys["ShiftRight"]) ? 1.5 : 1;
 
