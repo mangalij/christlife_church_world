@@ -353,6 +353,17 @@
       width: 64px; height: 64px;
       animation: holy-pulse 1.2s infinite;
     }
+    /* Contextual pet button — visible only after adoption. Tap to call
+       the pet to your side (same as KeyC). Walk up to the pet and press
+       the E (interact) button to play. */
+    #btn-pet {
+      position: absolute; bottom: calc(210px + env(safe-area-inset-bottom));
+      right: calc(20px + env(safe-area-inset-right));
+      display: none; pointer-events: all;
+      background: linear-gradient(135deg,#7C3AED,#A855F7);
+      color: #fff; border-color: #FFD700;
+      width: 56px; height: 56px;
+    }
     /* Driving controls — only visible while inside a vehicle. */
     #btn-brake {
       position: absolute; bottom: calc(70px + env(safe-area-inset-bottom));
@@ -495,6 +506,10 @@
         bottom: calc(120px + env(safe-area-inset-bottom));
       }
       #btn-holy { right: calc(80px + env(safe-area-inset-right)); }
+      #btn-pet {
+        width: 48px; height: 48px;
+        bottom: calc(180px + env(safe-area-inset-bottom));
+      }
       #cam-hint { display: none; }
     }
 
@@ -662,6 +677,7 @@
     <div class="mobile-btn" id="btn-jump" style="position:absolute;">↑</div>
     <div class="mobile-btn" id="btn-interact" style="position:absolute;">E</div>
     <div class="mobile-btn" id="btn-holy" style="position:absolute;" title="Sprinkle Holy Water">💧</div>
+    <div class="mobile-btn" id="btn-pet" style="position:absolute;" title="Call Pet to your side">🐾</div>
     <div class="mobile-btn" id="btn-brake" style="position:absolute;display:none;" title="Brake">🛑</div>
     <div class="mobile-btn" id="btn-exit-car" style="position:absolute;display:none;" title="Exit Car">🚪</div>
 

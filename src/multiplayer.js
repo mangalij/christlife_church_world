@@ -6,6 +6,24 @@ import {
 import * as THREE from "three";
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import { getVisitInfo } from "./worldSnapshot.js";
+import { buildAppearance } from "./appearance.js";
+import { applyOutfit } from "./outfits.js";
+
+// Appearance fields broadcast for every player so remote viewers can
+// render the exact same avatar the local player sees.
+const APPEARANCE_KEYS = [
+  "shirt", "pants", "skin",
+  "hairStyle", "hairColor",
+  "jacketOn", "jacketColor",
+  "shoeColor", "handItem",
+];
+function pickAppearance(pData) {
+  const out = {};
+  for (const k of APPEARANCE_KEYS) {
+    if (pData && pData[k] !== undefined) out[k] = pData[k];
+  }
+  return out;
+}
 
 let uid = null, playerRef = null, scene = null;
 let remotePlayers = {}, lastUpdate = 0;
@@ -37,8 +55,16 @@ export function initMultiplayer(_scene, _uid, pData) {
 
   playerRef = ref(db, `${roomBase}/players/${uid}`);
 
+  // Fold the active outfit into the broadcast so remote viewers see the
+  // same avatar (shirt/pants/skin/hair/jacket/shoes/handItem) the host
+  // sees locally, not just a generic toon body with a shirt color.
+  const fullAppearance = pickAppearance(applyOutfit(pData));
+
   set(playerRef, {
-    name: pData.name, shirt: pData.shirt,
+    name: pData.name,
+    // Keep top-level `shirt` for the who-panel dot legacy code path.
+    shirt: fullAppearance.shirt || pData.shirt,
+    appearance: fullAppearance,
     x: 0, y: 0, z: -8, rotY: 0,
     visiting: !!visit,
     lastSeen: serverTimestamp()
@@ -77,12 +103,23 @@ function updateRemotePlayers(all) {
   Object.entries(all).forEach(([id, data]) => {
     if (id === uid) return;
     seen.add(id);
-    if (!remotePlayers[id]) remotePlayers[id] = createRemoteMesh(data);
-    else {
-      remotePlayers[id].group.position.lerp(
-        new THREE.Vector3(data.x || 0, data.y || 0, data.z || 0), 0.2
-      );
-      remotePlayers[id].group.rotation.y = data.rotY || 0;
+    if (!remotePlayers[id]) {
+      remotePlayers[id] = createRemoteMesh(data);
+      remotePlayers[id].appearanceKey = JSON.stringify(data.appearance || null);
+    } else {
+      // If the host swapped outfits / changed their character, rebuild
+      // the remote mesh so we always mirror the current appearance.
+      const key = JSON.stringify(data.appearance || null);
+      if (key !== remotePlayers[id].appearanceKey) {
+        scene.remove(remotePlayers[id].group);
+        remotePlayers[id] = createRemoteMesh(data);
+        remotePlayers[id].appearanceKey = key;
+      } else {
+        remotePlayers[id].group.position.lerp(
+          new THREE.Vector3(data.x || 0, data.y || 0, data.z || 0), 0.2
+        );
+        remotePlayers[id].group.rotation.y = data.rotY || 0;
+      }
     }
   });
   Object.keys(remotePlayers).forEach(id => {
@@ -92,21 +129,15 @@ function updateRemotePlayers(all) {
 
 function createRemoteMesh(data) {
   const group = new THREE.Group();
-  const shirt = parseInt((data.shirt || "#4169E1").replace("#", ""), 16);
-  const mat = c => new THREE.MeshToonMaterial({ color: c });
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1, 0.5), mat(shirt));
-  torso.position.y = 1.2;
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.6), mat(0xFFCBA4));
-  head.position.y = 2.05;
-  [-0.22, 0.22].forEach(x => {
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.9, 0.4), mat(0x333333));
-    leg.position.set(x, 0.45, 0); group.add(leg);
-  });
-  [-0.6, 0.6].forEach(x => {
-    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.85, 0.4), mat(shirt));
-    arm.position.set(x, 1.2, 0); group.add(arm);
-  });
-  group.add(torso, head);
+
+  // Prefer the full broadcast appearance so the remote avatar matches
+  // exactly what the host sees on their own device. Fall back to a
+  // shirt-color-only minimal body for legacy records that pre-date the
+  // appearance broadcast.
+  const appearance = data.appearance && typeof data.appearance === "object"
+    ? data.appearance
+    : { shirt: data.shirt || "#4169E1" };
+  buildAppearance(group, appearance);
 
   const div = document.createElement("div");
   div.style.cssText = "color:#4ECDC4;font-size:13px;font-family:'Nunito',sans-serif;" +
@@ -159,6 +190,20 @@ export function pushMembership() {
  */
 export function getRoomBase() { return roomBase || "worlds/christlife"; }
 export function getMyUid()    { return uid; }
+
+/**
+ * Re-publish the local player's appearance (called by outfits.js when
+ * the active outfit changes so other players see the swap live).
+ */
+export function publishAppearance(pData) {
+  if (!firebaseEnabled || !playerRef || !pData) return;
+  const fullAppearance = pickAppearance(applyOutfit(pData));
+  update(playerRef, {
+    shirt: fullAppearance.shirt || pData.shirt,
+    appearance: fullAppearance,
+    lastSeen: serverTimestamp()
+  });
+}
 
 function initChat(playerName) {
   const base = roomBase || "worlds/christlife";

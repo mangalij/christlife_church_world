@@ -11,7 +11,7 @@
 import * as THREE from "three";
 import { showToast, openMinigameModal } from "./ui.js";
 import { addXP } from "./growth.js";
-import { requestInteractButton } from "./player.js";
+import { requestInteractButton, setPetButtonVisible } from "./player.js";
 
 const STORAGE = "clw_pet";
 const POST_POS = new THREE.Vector3(-58, 0, -7); // near the garden's NW corner
@@ -257,7 +257,13 @@ function adoptPet(type, name) {
   spawnPetMesh();
   document.getElementById("minigame-modal").style.display = "none";
   showToast(`${PET_TYPES[type].emoji} ${name} is now your companion!`);
+  // Onboarding hint so players know how to actually interact with their
+  // new pet (the keys/buttons aren't obvious otherwise).
+  setTimeout(() => showToast(
+    "🐾 Walk up to your pet and press E to play. Tap the pet badge (top-left) for tricks."
+  ), 1800);
   refreshHudBadge();
+  setPetButtonVisible(!!window.isMobile);
 }
 
 function spawnPetMesh() {
@@ -338,6 +344,27 @@ function nearPost(pos) {
   return dx * dx + dz * dz <= POST_INTERACT_R * POST_INTERACT_R;
 }
 
+// True when the player is standing right next to their adopted pet, so
+// pressing E (or the mobile interact button) plays with it.
+const PET_INTERACT_R = 2.2;
+function nearPet(pos) {
+  if (!_mesh || !_state?.adopted) return false;
+  const dx = _mesh.position.x - pos.x;
+  const dz = _mesh.position.z - pos.z;
+  return dx * dx + dz * dz <= PET_INTERACT_R * PET_INTERACT_R;
+}
+
+// Trigger the "play with pet" reaction (shared by the G key and the
+// mobile interact button when standing next to the pet).
+function playWithPet() {
+  if (!_state?.adopted || !_mesh) return;
+  const cfg = PET_TYPES[_state.type] || PET_TYPES.sheep;
+  showToast(`${cfg.emoji} ${_state.name} loves playing! (${cfg.sound})`);
+  addPetXP(4);
+  _trickPhase = "wave";
+  _trickTimer = 1.0;
+}
+
 function updatePetFollow(delta) {
   if (!_mesh || !_state || !_state.adopted) return;
   const target = _player.group.position;
@@ -388,14 +415,20 @@ export function initPet(scene, player) {
   if (_state.adopted) {
     spawnPetMesh();
     refreshHudBadge();
+    // Reveal the dedicated mobile Call-Pet button on phones.
+    setPetButtonVisible(!!window.isMobile);
   }
   _lastPlayerXP = parseInt(localStorage.getItem("clw_xp") || "0");
 
   window.addEventListener("keydown", e => {
     if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
     if (e.code === "KeyE") {
-      // Open adoption / pet panel only if standing at the post
-      if (nearPost(_player.group.position)) openAdoptionModal();
+      // Priority: at the adoption post → open adoption/pet panel.
+      // Otherwise, if standing next to the pet → play with it (same
+      // behavior as KeyG so phone players who only have the interact
+      // button can still play).
+      if (nearPost(_player.group.position)) { openAdoptionModal(); return; }
+      if (nearPet(_player.group.position))  { playWithPet();      return; }
       return;
     }
     if (e.code === SUMMON_KEY && _state?.adopted && _mesh && _summonCooldown <= 0) {
@@ -407,13 +440,7 @@ export function initPet(scene, player) {
     if (e.code === PLAY_KEY && _state?.adopted && _mesh) {
       const dx = _mesh.position.x - _player.group.position.x;
       const dz = _mesh.position.z - _player.group.position.z;
-      if (dx * dx + dz * dz < 9) {
-        const cfg = PET_TYPES[_state.type] || PET_TYPES.sheep;
-        showToast(`${cfg.emoji} ${_state.name} loves playing! (${cfg.sound})`);
-        addPetXP(4);
-        _trickPhase = "wave";
-        _trickTimer = 1.0;
-      }
+      if (dx * dx + dz * dz < 9) playWithPet();
     }
   });
 }
@@ -435,14 +462,20 @@ export function updatePet(delta) {
   // Prompt management
   const prompt = ensurePostPrompt();
   const isOpenModal = document.getElementById("minigame-modal")?.style.display === "flex";
-  const showPost = !isOpenModal && !window.__nearNPC && nearPost(_player.group.position);
+  const atPost = !isOpenModal && !window.__nearNPC && nearPost(_player.group.position);
+  const atPet  = !isOpenModal && !window.__nearNPC && !atPost && nearPet(_player.group.position);
+  const showPost = atPost || atPet;
   // Mobile: register a vote for the interact button so phone players can
-  // open the adoption / pet panel by tapping E.
+  // open the adoption panel OR play with their pet by tapping E.
   requestInteractButton("pet", showPost);
   if (showPost) {
-    prompt.textContent = _state?.adopted
-      ? `🐾 Press E for ${_state.name}`
-      : "🐾 Press E to adopt a pet";
+    if (atPost) {
+      prompt.textContent = _state?.adopted
+        ? `🐾 Press E for ${_state.name}`
+        : "🐾 Press E to adopt a pet";
+    } else {
+      prompt.textContent = `🐾 Press E to play with ${_state.name}`;
+    }
     prompt.style.display = "block";
   } else {
     prompt.style.display = "none";

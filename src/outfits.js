@@ -119,6 +119,12 @@ let _basePData = null;
 function rebuildPlayer() {
   if (!_player || !_player.refreshOutfit) return;
   _player.refreshOutfit(applyOutfit(_basePData));
+  // Push the new appearance to multiplayer so other players see the
+  // outfit swap live without needing to reload. Imported lazily to
+  // avoid a circular module dependency on multiplayer.js.
+  import("./multiplayer.js").then(mp => {
+    mp.publishAppearance && mp.publishAppearance(_basePData);
+  }).catch(() => {});
 }
 
 // ---- UI ------------------------------------------------------------

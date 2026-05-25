@@ -157,6 +157,13 @@ export function initMobileControls() {
     sendKey("KeyH");
   }, { passive: false });
 
+  // Pet button — visibility toggled by pet.js once a pet is adopted.
+  // Tapping summons the pet to your side (same as KeyC).
+  document.getElementById("btn-pet").addEventListener("touchstart", e => {
+    e.preventDefault();
+    sendKey("KeyC");
+  }, { passive: false });
+
   // Driving controls — visibility toggled by vehicle.js on enter/exit.
   // Brake fires Space (continuous while held); Exit fires F.
   const btnBrake = document.getElementById("btn-brake");
@@ -221,6 +228,11 @@ export function setInteractButtonVisible(visible) {
 
 export function setHolyButtonVisible(visible) {
   const btn = document.getElementById("btn-holy");
+  if (btn) btn.style.display = visible ? "flex" : "none";
+}
+
+export function setPetButtonVisible(visible) {
+  const btn = document.getElementById("btn-pet");
   if (btn) btn.style.display = visible ? "flex" : "none";
 }
 
