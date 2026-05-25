@@ -298,7 +298,6 @@ export function updatePlayground(delta) {
     return;
   }
   if (window.__nearNPC) { prompt.style.display = "none"; return; }
-  const pos = _player.group.position;
   if (nearestSwingIndex(pos) !== -1) {
     prompt.textContent = "🪜 Press E to swing";
     prompt.style.display = "block";
