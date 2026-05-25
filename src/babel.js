@@ -32,7 +32,9 @@ import { requestInteractButton } from "./player.js";
 // natural co-op activity when multiple players are online.
 const SITE_X = 70;
 const SITE_Z = -32;
-const PILE_X = -65;
+// Pile sits ~45 units west of the build site along the same Z line,
+// so it's clearly visible from the tower yet still a meaningful haul.
+const PILE_X = 25;
 const PILE_Z = -32;
 const INTERACT_RANGE = 2.6;
 const DOOR_RANGE     = 2.8;

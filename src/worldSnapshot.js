@@ -59,10 +59,16 @@ export function serializeFromLocalStorage() {
   return out;
 }
 
-/** Overwrite localStorage with the given snapshot's keys. */
-export function applySnapshotToLocalStorage(snap) {
+/**
+ * Overwrite localStorage with the given snapshot's keys. By default we
+ * iterate every snapshot key (so a key absent from `snap` is REMOVED —
+ * needed when restoring a backup so stale leftovers can't linger). Pass
+ * `keysToTouch` to limit which keys we read/write/remove; the rest of
+ * localStorage is left strictly untouched.
+ */
+export function applySnapshotToLocalStorage(snap, keysToTouch = SNAPSHOT_KEYS) {
   if (!snap || typeof snap !== "object") return;
-  for (const k of SNAPSHOT_KEYS) {
+  for (const k of keysToTouch) {
     if (k in snap) {
       try { localStorage.setItem(k, snap[k]); } catch {}
     } else {
@@ -92,7 +98,12 @@ export function isVisiting() {
  * Reads still work normally, so the host's world continues to render.
  */
 export function enableReadOnlyLocalStorage() {
-  const snapshotSet = new Set(SNAPSHOT_KEYS);
+  // Only protect HOST-owned keys. The visitor must always be allowed to
+  // write their own identity (clw_character, clw_outfit) \u2014 those belong
+  // to the player, not the church being visited.
+  const snapshotSet = new Set(
+    SNAPSHOT_KEYS.filter(k => !IDENTITY_KEYS.has(k))
+  );
   const proto = Object.getPrototypeOf(localStorage) || Storage.prototype;
   const orig = proto.setItem;
   if (proto.__clwVisitPatched) return;
@@ -182,12 +193,12 @@ export async function beginVisit(hostUid, hostMetaHint = {}) {
   const backup = serializeFromLocalStorage();
   sessionStorage.setItem(VISIT_BACKUP_KEY, JSON.stringify(backup));
 
-  // 2. Overwrite localStorage with host snapshot — but PRESERVE the
-  //    visitor's identity keys (name, church, appearance, outfit) so they
-  //    stay themselves while exploring the host's world.
-  const stateToApply = { ...remote.state };
-  for (const k of IDENTITY_KEYS) delete stateToApply[k];
-  applySnapshotToLocalStorage(stateToApply);
+  // 2. Overwrite localStorage with host snapshot — but never touch the
+  //    visitor's identity keys (name, church, appearance, outfit). We
+  //    restrict the apply to non-identity keys so the visitor's stored
+  //    clw_character / clw_outfit are neither overwritten nor removed.
+  const nonIdentityKeys = SNAPSHOT_KEYS.filter(k => !IDENTITY_KEYS.has(k));
+  applySnapshotToLocalStorage(remote.state, nonIdentityKeys);
 
   // 3. Mark visit mode
   const meta = remote.meta || {};
