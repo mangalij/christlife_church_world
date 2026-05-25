@@ -5,13 +5,25 @@ import {
 } from "firebase/database";
 import * as THREE from "three";
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
+import { getVisitInfo } from "./worldSnapshot.js";
 
 let uid = null, playerRef = null, scene = null;
 let remotePlayers = {}, lastUpdate = 0;
+// Room (= host) UID: when visiting someone else's church we join their room
+// (worlds/<hostUid>/players/...) instead of our own. When not visiting, the
+// room is our own UID so other players visiting us land in the same room.
+let roomUid = null;
+let roomBase = "worlds/christlife";   // legacy global path for chat/membership
 
 export function initMultiplayer(_scene, _uid, pData) {
   scene = _scene;
   uid = _uid;
+
+  const visit = getVisitInfo();
+  roomUid  = visit ? visit.hostUid : _uid;
+  // Keep chat + membership tied to the church being rendered. Legacy global
+  // path is used when we're in our own world with no UID (offline mode).
+  roomBase = roomUid ? `worlds/${roomUid}` : "worlds/christlife";
 
   if (!firebaseEnabled) {
     // Offline mode: still drive the local membership/who-panel UI.
@@ -23,22 +35,23 @@ export function initMultiplayer(_scene, _uid, pData) {
     return;
   }
 
-  playerRef = ref(db, `worlds/christlife/players/${uid}`);
+  playerRef = ref(db, `${roomBase}/players/${uid}`);
 
   set(playerRef, {
     name: pData.name, shirt: pData.shirt,
     x: 0, y: 0, z: -8, rotY: 0,
+    visiting: !!visit,
     lastSeen: serverTimestamp()
   });
   onDisconnect(playerRef).remove();
 
-  onValue(ref(db, "worlds/christlife/players"), snap => {
+  onValue(ref(db, `${roomBase}/players`), snap => {
     updateRemotePlayers(snap.val() || {});
     updateWhoPanel(snap.val() || {}, pData.name);
   });
 
-  onValue(ref(db, "worlds/christlife/membership/count"), snap => {
-    const count = snap.val() || 12;
+  onValue(ref(db, `${roomBase}/membership/count`), snap => {
+    const count = snap.val() || parseInt(localStorage.getItem("clw_members") || "12", 10);
     document.getElementById("member-count").textContent = count;
     updateMembershipBar(count);
   });
@@ -132,11 +145,24 @@ function updateMembershipBar(count) {
 
 export function pushMembership() {
   if (!firebaseEnabled) return;
-  runTransaction(ref(db, "worlds/christlife/membership/count"), v => (v || 12) + 1);
+  // Only the church owner mutates membership; visitors never bump someone
+  // else's congregation counter.
+  if (getVisitInfo()) return;
+  const base = roomBase || "worlds/christlife";
+  runTransaction(ref(db, `${base}/membership/count`), v => (v || 12) + 1);
 }
 
+/**
+ * Accessors used by minigames that want to publish session state into
+ * the same Firebase room as the rest of multiplayer (e.g. free-throw
+ * leaderboards visible to everyone in this church).
+ */
+export function getRoomBase() { return roomBase || "worlds/christlife"; }
+export function getMyUid()    { return uid; }
+
 function initChat(playerName) {
-  onValue(query(ref(db, "worlds/christlife/chat"), limitToLast(20)), snap => {
+  const base = roomBase || "worlds/christlife";
+  onValue(query(ref(db, `${base}/chat`), limitToLast(20)), snap => {
     const msgs = snap.val() || {};
     const box = document.getElementById("chat-messages");
     box.innerHTML = "";
@@ -160,7 +186,7 @@ function initChat(playerName) {
     const input = document.getElementById("chat-input");
     const text = input.value.trim();
     if (!text) return;
-    push(ref(db, "worlds/christlife/chat"), {
+    push(ref(db, `${base}/chat`), {
       name: playerName, message: text, timestamp: serverTimestamp()
     });
     input.value = "";

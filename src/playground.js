@@ -105,8 +105,10 @@ function startSlide() {
   _slideClimbT = 0;
   _slideT = 0;
   saveTransform();
-  // Face the slide direction (sliding toward -x along the chute)
-  _player.group.rotation.y = -Math.PI / 2;  // face -x
+  // Face the slide direction (sliding toward -x along the chute).
+  // Player model's local forward is -Z, so rotation.y = +π/2 rotates
+  // -Z onto -X (facing the direction of motion).
+  _player.group.rotation.y = Math.PI / 2;
   // Bend the legs forward as if seated
   const { legL, legR, armL, armR } = _player.parts;
   legL.rotation.x = -Math.PI / 2;
@@ -198,22 +200,33 @@ function updateSwing(delta) {
   _swingPhase += delta * SWING_OMEGA;
   _swingAmpScale = Math.min(1, _swingAmpScale + delta * 0.8);
   const angle = Math.sin(_swingPhase) * SWING_AMPLITUDE * _swingAmpScale;
-  // Visible swing rig
+  // Visible swing rig — the seat hangs at local (0, -chainLen, 0) and the
+  // pivot rotates around X by +angle, which rotates that local point to
+  // (0, -chainLen*cos(angle), -chainLen*sin(angle)). So when angle > 0
+  // the seat swings toward -Z (NOT +Z).
   if (sw.pivot) sw.pivot.rotation.x = angle;
-  // Player snaps to the seat — compute world position from the swung pivot.
-  // Pivot is at anchor; seat hangs straight down at -chainLen along the
-  // pivot's local Y. After rotating around X by `angle`, the seat moves
-  // in the YZ plane: dz = chainLen * sin(angle), dy = -chainLen * cos(angle).
+
+  // Player sits on the seat. The body must align ALONG the chain so it
+  // looks like a person sitting — head up toward the anchor, hips on the
+  // seat, legs hanging off the front (already bent forward by startSwing).
+  //
+  //   • Chain direction (anchor → seat) = (0, -cos(angle), -sin(angle))
+  //   • Body "up" (feet → head) should point opposite: (0, cos(angle), sin(angle))
+  //   • Setting player.rotation.x = +angle achieves that (local +Y goes to
+  //     (0, cos(angle), sin(angle)) under that rotation).
+  //   • The group origin is at the player's FEET; hips sit ~0.65m above.
+  //     We want hips on the seat, so feet = seat − 0.65 · body_up, which
+  //     simplifies to a (chainLen + HIP_OFFSET) extension along the chain.
   const a = sw.anchorPos;
+  const HIP_OFFSET = 0.65;
+  const reach = sw.chainLen + HIP_OFFSET;
   _player.group.position.set(
     a.x,
-    a.y - sw.chainLen * Math.cos(angle) + sw.seatY * 0,   // seat top
-    a.z + sw.chainLen * Math.sin(angle)
+    a.y - reach * Math.cos(angle),
+    a.z - reach * Math.sin(angle)
   );
-  // Face along the bar (perpendicular to motion). Keep yaw fixed and lean
-  // the body so it follows the swing.
   _player.group.rotation.y = 0;
-  _player.group.rotation.x = -angle;
+  _player.group.rotation.x = angle;
   _player.group.rotation.z = 0;
 }
 

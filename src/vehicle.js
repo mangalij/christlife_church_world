@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { showToast } from "./ui.js";
 import { addMember } from "./growth.js";
 import { mobileInput, setDrivingControlsVisible } from "./player.js";
@@ -125,32 +126,69 @@ function buildCar(scene, x, z, color, rotY = 0, typeKey = "sedan") {
   const group = new THREE.Group();
   const mat = c => new THREE.MeshToonMaterial({ color: c });
 
-  // --- Body ---
-  const body = new THREE.Mesh(
-    new THREE.BoxGeometry(def.body.w, def.body.h, def.body.d), mat(color));
+  // RoundedBoxGeometry helper — bevels the corners so the chassis pieces
+  // don't look like flat-faced cardboard boxes. Bevel radius is auto-capped
+  // so it can't exceed half the smallest dimension.
+  const rb = (w, h, d, r = 0.14, seg = 3) => {
+    const maxR = Math.min(w, h, d) / 2 - 0.001;
+    return new RoundedBoxGeometry(w, h, d, seg, Math.min(r, maxR));
+  };
+
+  // --- Body --- (chamfered so the hood/trunk taper visually)
+  const body = new THREE.Mesh(rb(def.body.w, def.body.h, def.body.d, 0.22), mat(color));
   body.position.y = def.body.y;
   body.castShadow = true;
 
-  // --- Cabin (greenhouse / passenger volume) ---
-  const cabin = new THREE.Mesh(
-    new THREE.BoxGeometry(def.cabin.w, def.cabin.h, def.cabin.d), mat(def.cabin.color));
+  // --- Cabin (greenhouse / passenger volume) --- with a touch of
+  // transparency so it reads as tinted glass instead of solid plastic.
+  const cabinMat = new THREE.MeshToonMaterial({
+    color: def.cabin.color,
+    transparent: true,
+    opacity: 0.82,
+  });
+  const cabin = new THREE.Mesh(rb(def.cabin.w, def.cabin.h, def.cabin.d, 0.16), cabinMat);
   cabin.position.set(def.cabin.x, def.cabin.y, def.cabin.z);
   cabin.castShadow = true;
 
-  // --- Roof accent strip in body color ---
-  const roof = new THREE.Mesh(
-    new THREE.BoxGeometry(def.roof.w, def.roof.h, def.roof.d), mat(color));
+  // --- Roof accent strip in body color (rounded) ---
+  const roof = new THREE.Mesh(rb(def.roof.w, def.roof.h, def.roof.d, 0.05), mat(color));
   roof.position.set(0, def.roof.y, def.roof.z);
 
   group.add(body, cabin, roof);
 
+  // --- Front + rear bumpers (slim, rounded, dark plastic) ---
+  const bumperMat = mat(0x1a1a1a);
+  const bumperGeo = rb(def.body.w * 0.98, 0.18, 0.25, 0.08);
+  const fBumper = new THREE.Mesh(bumperGeo, bumperMat);
+  fBumper.position.set(0, def.body.y - def.body.h / 2 + 0.12, def.body.d / 2 - 0.05);
+  const rBumper = new THREE.Mesh(bumperGeo, bumperMat);
+  rBumper.position.set(0, def.body.y - def.body.h / 2 + 0.12, -def.body.d / 2 + 0.05);
+  group.add(fBumper, rBumper);
+
+  // --- Front grille (horizontal slats look) ---
+  const grille = new THREE.Mesh(
+    rb(def.body.w * 0.55, 0.22, 0.08, 0.04),
+    mat(0x222222)
+  );
+  grille.position.set(0, def.body.y, def.body.d / 2 + 0.02);
+  group.add(grille);
+
+  // --- Side window strips on the cabin (narrow dark band along the sides)
+  // — adds visual definition that boxes alone don't convey.
+  const winStripGeo = rb(0.04, def.cabin.h * 0.55, def.cabin.d * 0.9, 0.02);
+  const winStripMat = new THREE.MeshToonMaterial({ color: 0x111122, transparent: true, opacity: 0.85 });
+  const winL = new THREE.Mesh(winStripGeo, winStripMat);
+  winL.position.set(-def.cabin.w / 2 + 0.02, def.cabin.y + 0.05, def.cabin.z);
+  const winR = winL.clone(); winR.position.x = def.cabin.w / 2 - 0.02;
+  group.add(winL, winR);
+
   // --- Type-specific extras ---
   if (def.extras?.includes("spoiler")) {
     // Rear wing on a small stalk
-    const stalkL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.25, 0.08), mat(0x222222));
+    const stalkL = new THREE.Mesh(rb(0.08, 0.25, 0.08, 0.03), mat(0x222222));
     stalkL.position.set(-0.7, def.body.y + def.body.h / 2 + 0.18, -def.body.d / 2 + 0.15);
     const stalkR = stalkL.clone(); stalkR.position.x = 0.7;
-    const wing = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.08, 0.35), mat(color));
+    const wing = new THREE.Mesh(rb(1.7, 0.08, 0.35, 0.04), mat(color));
     wing.position.set(0, def.body.y + def.body.h / 2 + 0.35, -def.body.d / 2 + 0.15);
     group.add(stalkL, stalkR, wing);
   }
@@ -161,35 +199,49 @@ function buildCar(scene, x, z, color, rotY = 0, typeKey = "sedan") {
     const wallH = 0.5, wallT = 0.08;
     const bedW = def.body.w - 0.05;
     const bedD = 1.6;
-    const sideL = new THREE.Mesh(new THREE.BoxGeometry(wallT, wallH, bedD), mat(color));
+    const sideL = new THREE.Mesh(rb(wallT, wallH, bedD, 0.03), mat(color));
     sideL.position.set(-bedW / 2 + wallT / 2, bedY, bedZ);
     const sideR = sideL.clone(); sideR.position.x =  bedW / 2 - wallT / 2;
-    const tail = new THREE.Mesh(new THREE.BoxGeometry(bedW, wallH, wallT), mat(color));
+    const tail = new THREE.Mesh(rb(bedW, wallH, wallT, 0.03), mat(color));
     tail.position.set(0, bedY, bedZ - bedD / 2 + wallT / 2);
     group.add(sideL, sideR, tail);
   }
   if (def.extras?.includes("roofRack")) {
-    const rackBar = new THREE.Mesh(new THREE.BoxGeometry(def.roof.w - 0.2, 0.05, 0.08),
-      mat(0x222222));
+    const rackBarGeo = rb(def.roof.w - 0.2, 0.05, 0.08, 0.02);
     const rackY = def.roof.y + 0.08;
-    const bar1 = rackBar.clone(); bar1.position.set(0, rackY, def.roof.z + def.roof.d / 2 - 0.3);
-    const bar2 = rackBar.clone(); bar2.position.set(0, rackY, def.roof.z - def.roof.d / 2 + 0.3);
+    const bar1 = new THREE.Mesh(rackBarGeo, mat(0x222222));
+    bar1.position.set(0, rackY, def.roof.z + def.roof.d / 2 - 0.3);
+    const bar2 = new THREE.Mesh(rackBarGeo, mat(0x222222));
+    bar2.position.set(0, rackY, def.roof.z - def.roof.d / 2 + 0.3);
     group.add(bar1, bar2);
   }
 
-  // --- Wheels ---
+  // --- Wheels --- (tire + silver rim + center hub for a much less
+  // "plastic disc" look)
   const r = def.wheels.radius;
-  const wheelGeo = new THREE.CylinderGeometry(r, r, 0.3, 14);
-  const wheelMat = mat(0x111111);
+  const tireGeo = new THREE.CylinderGeometry(r, r, 0.32, 20);
+  const tireMat = mat(0x141414);
+  const rimGeo  = new THREE.CylinderGeometry(r * 0.6, r * 0.6, 0.34, 14);
+  const rimMat  = mat(0xBFC1C2);
+  const hubGeo  = new THREE.SphereGeometry(r * 0.18, 10, 8);
+  const hubMat  = mat(0x555555);
   const wheels = [];
   [[-def.wheels.axle, r, def.wheels.frontZ], [def.wheels.axle, r, def.wheels.frontZ],
    [-def.wheels.axle, r, def.wheels.rearZ ], [def.wheels.axle, r, def.wheels.rearZ ]]
    .forEach(([wx, wy, wz]) => {
-    const w = new THREE.Mesh(wheelGeo, wheelMat);
-    w.rotation.z = Math.PI / 2;
-    w.position.set(wx, wy, wz);
-    group.add(w);
-    wheels.push(w);
+    const wheelGroup = new THREE.Group();
+    const tire = new THREE.Mesh(tireGeo, tireMat);
+    tire.rotation.z = Math.PI / 2;
+    tire.castShadow = true;
+    const rim = new THREE.Mesh(rimGeo, rimMat);
+    rim.rotation.z = Math.PI / 2;
+    const hub = new THREE.Mesh(hubGeo, hubMat);
+    wheelGroup.add(tire, rim, hub);
+    wheelGroup.position.set(wx, wy, wz);
+    group.add(wheelGroup);
+    // Reuse the tire mesh for the rotation animation (it spins, the rim
+    // is parented to it via the group so we rotate the whole group).
+    wheels.push(wheelGroup);
   });
 
   // --- Headlights (front = local +Z) ---
@@ -267,6 +319,7 @@ function exitCar() {
 }
 
 export function isDriving() { return !!activeCar; }
+export function getActiveCar() { return activeCar; }
 
 export function updateVehicles(camera, delta, colliders) {
   // Update prompt labels for parked cars

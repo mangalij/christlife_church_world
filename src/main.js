@@ -19,12 +19,13 @@ import { initActions, updateActions } from "./actions.js";
 import { initFood, updateFood } from "./food.js";
 import { initAesthetics } from "./aesthetics.js";
 import { initBasketball, updateBasketball } from "./basketball3d.js";
-import { updateMatch } from "./match1v1.js";
 import { initFountain, updateFountain } from "./fountain.js";
 import { initBaptism, updateBaptism } from "./baptism.js";
 import { initWolves, updateWolves } from "./wolves.js";
 import { initPlayground, updatePlayground } from "./playground.js";
 import { initGarden, updateGarden } from "./garden.js";
+import { initBabel, updateBabel } from "./babel.js";
+import { initParkingChallenge, updateParkingChallenge } from "./parkingChallenge.js";
 import { initFaith } from "./faith.js";
 import { initFloaters } from "./floaters.js";
 import { initEvents, updateEvents } from "./events.js";
@@ -35,6 +36,17 @@ import { initProgression } from "./progression.js";
 import { initOutfits } from "./outfits.js";
 import { buildAppearance, SKIN_TONES } from "./appearance.js";
 import { firebaseSignIn } from "./firebase.js";
+import { initVisit } from "./visit.js";
+import {
+  isVisiting, enableReadOnlyLocalStorage, publishMySnapshot,
+} from "./worldSnapshot.js";
+
+// If we're visiting another player's church, prevent any module from
+// overwriting the host's snapshot keys in localStorage. The visitor's real
+// save was backed up to sessionStorage and is restored on "Leave Visit".
+if (isVisiting()) {
+  enableReadOnlyLocalStorage();
+}
 
 // ---- Device detection ----
 // Detect real phones/tablets only. Many Windows laptops report touch points
@@ -136,6 +148,7 @@ if (!playerData) {
       jacketOn:    document.getElementById("jacket-on").checked,
       jacketColor: document.getElementById("jacket-color").value,
       shoeColor:   document.getElementById("shoe-color").value,
+      handItem:    document.getElementById("hand-item").value,
     };
   }
 
@@ -149,6 +162,7 @@ if (!playerData) {
     .forEach(id => document.getElementById(id).addEventListener("input", refreshPreview));
   document.getElementById("hair-style").addEventListener("change", refreshPreview);
   document.getElementById("jacket-on").addEventListener("change", refreshPreview);
+  document.getElementById("hand-item").addEventListener("change", refreshPreview);
 
   (function animPreview() {
     requestAnimationFrame(animPreview);
@@ -229,8 +243,17 @@ async function startGame(pData) {
   initFountain(scene, player, zones);
   initPlayground(player, zones);
   initGarden(scene, player, zones);
+  initBabel(scene, player);
+  initParkingChallenge(scene, player, zones);
   initMultiplayer(scene, uid, pData, labelRenderer);
   initMobileControls();
+  initVisit(uid, pData);
+
+  // Publish our church snapshot so others can visit. Skipped automatically
+  // when in visit mode or running offline. Refreshes periodically to keep
+  // the catalog up to date with new buildings / member growth.
+  publishMySnapshot(uid, pData);
+  setInterval(() => publishMySnapshot(uid, pData), 60_000);
 
   // Retention / progression systems
   initFaith();
@@ -279,12 +302,13 @@ async function startGame(pData) {
     updateActions(delta);
     updateFood(delta);
     updateBasketball(delta);
-    updateMatch(delta);
     updateBaptism(delta);
     updateWolves(delta);
     updateFountain();
     updatePlayground(delta);
     updateGarden(delta);
+    updateBabel(delta);
+    updateParkingChallenge(delta);
     updateEvents(delta);
     updatePet(delta);
     updateSeasons(delta, player.group.position);

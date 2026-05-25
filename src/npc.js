@@ -9,7 +9,6 @@ import { openCoffeeStand } from "./minigames/coffeeStand.js";
 import { openPrayerFocus } from "./minigames/prayerFocus.js";
 import { openWheelOfBlessings } from "./minigames/wheelOfBlessings.js";
 import { openImposter } from "./minigames/imposter.js";
-import { start1v1Match } from "./match1v1.js";
 import { setInteractButtonVisible } from "./player.js";
 import { addFace } from "./face.js";
 import { openWitnessing } from "./witnessing.js";
@@ -148,12 +147,11 @@ const NPC_DATA = [
     name: "Coach Marcus", shirtColor: 0xE65A2A, pantsColor: 0x1B1B2F, headColor: 0x6E4A2E,
     pos: [47, 0, 20], role: "Hoops Coach", facing: Math.PI / 2,
     dialogue: [
-      "Welcome to Church Hoops! We run open court for the kids most evenings.",
-      "Think you can hang with the old man? Let's run a 1-on-1 right here on the court.",
-      "Every swish is 2. Beat me to 11 — or have more buckets when the clock hits zero.",
-      "WASD to move, E to grab/shoot. Get up in my grill on D — E to steal, stand close to block.",
+      "Welcome to Church Hoops! The court's open — grab a ball and shoot around.",
+      "Walk up to the ball and press E (or tap the action button) to pick it up.",
+      "Press E again to shoot at whichever hoop you're facing. Have fun out there!",
     ],
-    action: () => start1v1Match(_scene, _player, _zones)
+    action: null
   },
   {
     name: "Jayden",  shirtColor: 0x2980B9, pantsColor: 0x2F2F2F, headColor: 0x6E4A2E, scale: 0.7,

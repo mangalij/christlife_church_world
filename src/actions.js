@@ -19,8 +19,25 @@ const ACTIONS = {
   KeyR: { id: "read",   label: "📖 Reading Bible",  duration: 3.5 },
 };
 
+// Programmatic-only actions (no key binding) — triggered by other systems
+// such as the garden.  Keyed by id so playAction(id) can look them up.
+const INTERNAL_ACTIONS = {
+  till:  { id: "till",  label: "🪓 Tilling soil",  duration: 1.6 },
+  water: { id: "water", label: "💧 Watering",      duration: 1.5 },
+  lift:  { id: "lift",  label: "🧱 Lifting",       duration: 0.9 },
+};
+
 export function isActing() { return _active !== null; }
 export function currentAction() { return _active?.id || null; }
+
+// Programmatically play one of the named actions. `onComplete` is invoked
+// once the pose finishes (used by the garden so the till/water visual
+// change happens AFTER the animation has played).
+export function playAction(id, onComplete) {
+  const spec = INTERNAL_ACTIONS[id] || Object.values(ACTIONS).find(a => a.id === id);
+  if (!spec || !_player) { if (onComplete) onComplete(); return; }
+  startAction({ ...spec, onComplete: onComplete || null });
+}
 
 function ensureStatus() {
   if (_statusDiv) return _statusDiv;
@@ -72,9 +89,11 @@ function startAction(spec) {
 
 function stopAction() {
   if (!_active) return;
+  const cb = _active.onComplete;
   restoreRestPose();
   _active = null;
   _statusDiv.style.display = "none";
+  if (cb) { try { cb(); } catch (e) { console.error(e); } }
 }
 
 export function initActions(player) {
@@ -142,5 +161,51 @@ export function updateActions(delta) {
     p.armL.rotation.set(-0.9 * env, 0,  0.4 * env);
     p.armR.rotation.set(-0.9 * env, 0, -0.4 * env);
     p.head.rotation.x = 0.3 * env;
+  }
+  else if (_active.id === "till") {
+    // Two-handed hoeing motion: arms raise overhead, then swing down to
+    // the ground in front of the player, repeated ~2 times across the
+    // duration.  Slight forward torso lean.
+    const swing = Math.sin(t * Math.PI * 2.4); // -1..1
+    const armDown = (1 - swing) * 0.5; // 0 at top, 1 at ground
+    // Pivot both arms forward (rotation.x negative = forward in this rig)
+    const ang = -2.2 * armDown + 0.6 * (1 - armDown); // overhead → forward-down
+    p.armL.position.set(-0.3, 1.6, 0.15);
+    p.armR.position.set( 0.3, 1.6, 0.15);
+    p.armL.rotation.set(ang * env, 0,  0.15 * env);
+    p.armR.rotation.set(ang * env, 0, -0.15 * env);
+    p.torso.rotation.x = 0.18 * env * (0.4 + armDown * 0.6);
+    p.head.rotation.x  = 0.25 * env;
+    // Tuck Bible behind
+    if (_bible) { _bible.position.set(-0.55, 0.8, -0.1); _bible.rotation.set(0, 0, 0); }
+  }
+  else if (_active.id === "water") {
+    // Two-handed pouring motion: arms extended forward holding an
+    // invisible bucket, gradually tipped forward to pour.
+    const pour = Math.min(1, t / _active.duration * 1.4); // 0..1 then clamp
+    // Arms forward and slightly down (rotation.x negative = forward)
+    p.armL.position.set(-0.25, 1.45, 0.35);
+    p.armR.position.set( 0.25, 1.45, 0.35);
+    p.armL.rotation.set(-1.1 * env - 0.4 * pour * env, 0,  0.25 * env);
+    p.armR.rotation.set(-1.1 * env - 0.4 * pour * env, 0, -0.25 * env);
+    p.torso.rotation.x = 0.12 * env;
+    p.head.rotation.x  = 0.2 * env + 0.15 * pour * env;
+    if (_bible) { _bible.position.set(-0.55, 0.8, -0.1); _bible.rotation.set(0, 0, 0); }
+  }
+  else if (_active.id === "lift") {
+    // Bend down to grab (first half), then straighten while holding the
+    // item in front of the chest (second half).
+    const phase = Math.min(1, t / _active.duration); // 0..1
+    // Reach-down weight: 1.0 at start (deep bend), 0.0 at end (upright with item)
+    const reach = 1 - phase;
+    // Arm pitch goes from -1.9 (reaching down/forward) to -0.9 (cradling at chest)
+    const armX = -0.9 - reach * 1.0;
+    p.armL.position.set(-0.25, 1.35 - reach * 0.15, 0.35);
+    p.armR.position.set( 0.25, 1.35 - reach * 0.15, 0.35);
+    p.armL.rotation.set(armX * env, 0,  0.25 * env);
+    p.armR.rotation.set(armX * env, 0, -0.25 * env);
+    p.torso.rotation.x = reach * 0.45 * env;
+    p.head.rotation.x  = reach * 0.35 * env;
+    if (_bible) { _bible.position.set(-0.55, 0.8, -0.1); _bible.rotation.set(0, 0, 0); }
   }
 }

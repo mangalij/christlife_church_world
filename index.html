@@ -215,7 +215,6 @@
       margin: 0 auto;
       text-align: left;
     }
-    }
     #char-form label { color: #FFD700; font-size: 13px; font-weight: 700; }
     #char-form input[type="text"] {
       width: 100%; padding: 10px 14px; background: #1a0a2e;
@@ -549,6 +548,16 @@
         <input type="color" id="jacket-color" value="#222244" />
       </div>
 
+      <label>Hand Item</label>
+      <select id="hand-item">
+        <option value="none">None (empty hand)</option>
+        <option value="bible" selected>📖 Bible</option>
+        <option value="cross">✝️ Wooden Cross</option>
+        <option value="holyWater">💫 Holy Water</option>
+        <option value="candle">🕯️ Candle</option>
+        <option value="staff">🪜 Shepherd's Staff</option>
+      </select>
+
       <canvas id="char-preview"></canvas>
       <button id="enter-btn">Enter the World →</button>
     </div>
@@ -661,11 +670,12 @@
       <div class="mobile-btn" data-key="KeyQ" title="Worship (on stage)">🎤</div>
       <div class="mobile-btn" data-key="KeyP" title="Pray">🙏</div>
       <div class="mobile-btn" data-key="KeyR" title="Read Bible">📖</div>
-      <div class="mobile-btn" data-key="KeyG" title="Wave">👋</div>
+      <div class="mobile-btn" data-key="KeyG" title="Wave / Play with Pet">👋</div>
       <div class="mobile-btn" data-key="KeyH" title="Praise">🙌</div>
       <div class="mobile-btn" data-key="KeyT" title="Eat">🍞</div>
       <div class="mobile-btn" data-key="KeyB" title="Beautify Church">🏛</div>
       <div class="mobile-btn" data-key="KeyF" title="Enter Car / Drive">🚗</div>
+      <div class="mobile-btn" data-key="KeyC" title="Call Pet">🐾</div>
     </div>
 
     <div id="cam-hint">Drag right side to look around</div>

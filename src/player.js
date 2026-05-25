@@ -194,6 +194,116 @@ export function setHolyButtonVisible(visible) {
   if (btn) btn.style.display = visible ? "flex" : "none";
 }
 
+// ---- Hand-held item factory ----
+// Builds a small Group representing the chosen hand-held item. The
+// returned group should be added as a child of armR by the caller.
+// Returns null when the player chose "none".
+function buildHandItem(kind) {
+  const toon = c => new THREE.MeshToonMaterial({ color: c });
+  switch ((kind || "").toLowerCase()) {
+    case "none": return null;
+
+    case "cross": {
+      const g = new THREE.Group();
+      const wood = toon(0x6B3410);
+      const vert = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.55, 0.08), wood);
+      const horiz = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.08, 0.08), wood);
+      horiz.position.y = 0.12;
+      g.add(vert, horiz);
+      g.castShadow = true;
+      return g;
+    }
+
+    case "holywater": {
+      const g = new THREE.Group();
+      const glass = new THREE.MeshToonMaterial({
+        color: 0x9AD8FF, transparent: true, opacity: 0.7
+      });
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.32, 12), glass);
+      const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.08, 10), glass);
+      neck.position.y = 0.20;
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.04, 10), toon(0xC0A04A));
+      cap.position.y = 0.26;
+      const label = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.10, 0.10), toon(0xFFFFFF));
+      label.position.set(0, -0.02, 0.01);
+      // tiny cross on the label
+      const lc1 = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.06, 0.011), toon(0x7C3AED));
+      const lc2 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.015, 0.011), toon(0x7C3AED));
+      lc1.position.set(0, 0, 0.06); lc2.position.set(0, 0.012, 0.06);
+      label.add(lc1, lc2);
+      g.add(body, neck, cap, label);
+      g.castShadow = true;
+      return g;
+    }
+
+    case "candle": {
+      const g = new THREE.Group();
+      const stick = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.06, 0.36, 12), toon(0xF5E6C8)
+      );
+      const wick = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.008, 0.008, 0.04, 6), toon(0x222222)
+      );
+      wick.position.y = 0.20;
+      // Flame — small cone with emissive look (toon material can't truly
+      // self-illuminate but we tint it bright orange).
+      const flame = new THREE.Mesh(
+        new THREE.ConeGeometry(0.05, 0.14, 10),
+        new THREE.MeshBasicMaterial({ color: 0xFFB347 })
+      );
+      flame.position.y = 0.28;
+      // Wax drip ring
+      const ring = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.08, 0.07, 0.03, 12), toon(0xE8D8B0)
+      );
+      ring.position.y = -0.17;
+      g.add(stick, wick, flame, ring);
+      g.castShadow = true;
+      return g;
+    }
+
+    case "staff": {
+      const g = new THREE.Group();
+      const shaft = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.05, 0.055, 0.95, 10), toon(0x8B6B4A)
+      );
+      // Curved crook at the top — three small angled cylinders forming a hook
+      const hookMat = toon(0xA0825E);
+      for (let i = 0; i < 4; i++) {
+        const seg = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.05, 0.05, 0.12, 8), hookMat
+        );
+        const a = (i / 4) * Math.PI; // 0 .. PI
+        seg.position.set(0.10 * Math.sin(a), 0.50 + 0.10 * (1 - Math.cos(a)), 0);
+        seg.rotation.z = -a;
+        g.add(seg);
+      }
+      g.add(shaft);
+      g.castShadow = true;
+      return g;
+    }
+
+    case "bible":
+    default: {
+      const g = new THREE.Group();
+      const cover = new THREE.Mesh(
+        new THREE.BoxGeometry(0.28, 0.36, 0.09), toon(0x4A2C0A)
+      );
+      const pages = new THREE.Mesh(
+        new THREE.BoxGeometry(0.26, 0.34, 0.10), toon(0xE8DCC0)
+      );
+      pages.position.x = 0.011;
+      const cr = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.10, 0.011), toon(0xC0A04A));
+      cr.position.z = -0.05;
+      const crb = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.025, 0.011), toon(0xC0A04A));
+      crb.position.set(0, 0.018, -0.05);
+      g.add(cover, pages, cr, crb);
+      g.castShadow = true;
+      return g;
+    }
+  }
+}
+
 export async function createPlayer(scene, pData, camera) {
   const group = new THREE.Group();
   const { head, torso, legL, legR, armL, armR } = buildAppearance(group, pData);
@@ -217,6 +327,22 @@ export async function createPlayer(scene, pData, camera) {
   bible.position.set(-0.55, 1.0, 0.15);
   bible.castShadow = true;
   group.add(bible);
+
+  // ---- Hand-held item (player's choice on the start screen) ----
+  // Attached to the RIGHT arm so it sways naturally with arm animation.
+  // The arm's local origin is at its center, so y ≈ -0.55 places the
+  // item just past the bottom of the forearm (i.e. in the hand).
+  const chosenItem = (pData.handItem || "bible").toLowerCase();
+  const handItem = buildHandItem(chosenItem);
+  if (handItem) {
+    handItem.position.set(0, -0.55, 0.12);
+    armR.add(handItem);
+  }
+  // Hide the legacy hip-Bible whenever the player picked something other
+  // than a Bible — otherwise both items would appear on the avatar.
+  // We keep the mesh in the scene graph (just invisible) so existing
+  // animation code in actions.js that grabs `parts.bible` still works.
+  if (chosenItem !== "bible") bible.visible = false;
 
   group.position.set(0, 0, -8);
   scene.add(group);
