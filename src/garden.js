@@ -22,6 +22,7 @@ import * as THREE from "three";
 import { showToast, openMinigameModal } from "./ui.js";
 import { addXP, spendXP, getXP, addMember } from "./growth.js";
 import { playAction, isActing } from "./actions.js";
+import { requestInteractButton } from "./player.js";
 
 // ---- Configuration -------------------------------------------------
 const GARDEN_CX = -55;
@@ -965,6 +966,11 @@ export function initGarden(scene, player /*, zones */) {
 // Per-frame: fade wet disc, update prompt + bucket HUD.
 export function updateGarden(/* delta */) {
   if (!_player || _plots.length === 0) return;
+
+  // Mobile: the shared interact button is vote-based — register our
+  // claim whenever the player is at the well or at a plot so it shows
+  // up even when no NPC is around.
+  requestInteractButton("garden", !_modalOpen && !window.__nearNPC && (nearWell() || nearestPlotIndex() !== -1));
 
   const now = performance.now();
 

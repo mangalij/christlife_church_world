@@ -11,6 +11,7 @@
 import * as THREE from "three";
 import { showToast } from "./ui.js";
 import { addXP } from "./growth.js";
+import { requestInteractButton } from "./player.js";
 
 let _player = null;
 let _zones = null;
@@ -276,6 +277,14 @@ export function updatePlayground(delta) {
 
   if (_mode === "slide") { updateSlide(delta); }
   else if (_mode === "swing") { updateSwing(delta); }
+
+  // Mobile: claim the interact button whenever the player is on/at a
+  // ride so the tap can hop on a swing, ride the slide, or hop off again.
+  const pos = _player.group.position;
+  const nearRide = _mode === "swing" ||
+                   nearestSwingIndex(pos) !== -1 ||
+                   nearSlideMount(pos);
+  requestInteractButton("playground", nearRide && !window.__nearNPC);
 
   // Prompt management
   const prompt = ensurePrompt();

@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { openMinigameModal } from "./ui.js";
 import { addXP } from "./growth.js";
 import { addFace } from "./face.js";
+import { requestInteractButton } from "./player.js";
 
 // Tracks newly converted believers and lets the player baptize them at the
 // pool behind the sanctuary. State lives in localStorage so it survives a
@@ -426,6 +427,9 @@ function escapeHtml(s) {
 
 export function updateBaptism(delta) {
   if (!_pool) return;
+  // Mobile: claim the interact button whenever the player is in range
+  // of the baptismal pool so the tap can open the baptism flow.
+  if (_player) requestInteractButton("baptism", !_inFlow && !window.__nearNPC && atPool());
   _elapsed += delta;
   // Gentle shimmer animation on the water layers
   const wobble = (Math.sin(_elapsed * 1.8) + 1) * 0.5;       // 0..1

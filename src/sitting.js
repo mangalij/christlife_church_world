@@ -10,6 +10,7 @@
 //   _mode = "bed"     → lying on a bed (whole body rotated horizontal)
 import { getOccupiedSeats } from "./growth.js";
 import { showToast } from "./ui.js";
+import { requestInteractButton } from "./player.js";
 
 let _mode = null;                // null | "pew" | "sofa" | "bed"
 let _player = null;
@@ -242,6 +243,10 @@ export function initSitting(player, scene, zones) {
 
 export function updateSitting() {
   if (!_player || !_zones || !_promptDiv) return;
+  // Mobile: claim the interact button whenever we have something to do
+  // here — sitting down on a nearby seat, or standing back up.
+  const seatNear = !window.__nearNPC && (_mode || nearestSlot(_player.group.position));
+  requestInteractButton("sitting", !!seatNear);
   if (_mode) {
     _promptDiv.textContent = standPromptText();
     _promptDiv.style.display = "block";

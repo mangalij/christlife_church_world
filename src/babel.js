@@ -23,6 +23,7 @@ import { playAction, isActing } from "./actions.js";
 import { firebaseEnabled, db } from "./firebase.js";
 import { ref, onValue, runTransaction, set, update, onDisconnect } from "firebase/database";
 import { getRoomBase, getMyUid } from "./multiplayer.js";
+import { requestInteractButton } from "./player.js";
 
 // ---- Configuration ------------------------------------------------
 // Build site stays on the east edge of the map. The brick pile, however,
@@ -1032,6 +1033,11 @@ export function initBabel(scene, player) {
 
 export function updateBabel(delta) {
   if (!_player) return;
+
+  // Mobile: claim the interact button whenever the player is at the
+  // brick pile, the build site, the door, or up on top of the tower so
+  // the tap can grab/drop a brick or pick a judgement.
+  requestInteractButton("babel", (_atTop || isNearArea()) && !window.__nearNPC);
 
   // Keep the player locked to the top of the tower while up there.
   // (Movement keys would otherwise drag them off the platform / gravity

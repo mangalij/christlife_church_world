@@ -9,7 +9,7 @@ import { openCoffeeStand } from "./minigames/coffeeStand.js";
 import { openPrayerFocus } from "./minigames/prayerFocus.js";
 import { openWheelOfBlessings } from "./minigames/wheelOfBlessings.js";
 import { openImposter } from "./minigames/imposter.js";
-import { setInteractButtonVisible } from "./player.js";
+import { requestInteractButton } from "./player.js";
 import { addFace } from "./face.js";
 import { openWitnessing } from "./witnessing.js";
 
@@ -365,7 +365,7 @@ export function updateNPCs(npcs, player, delta, elapsed) {
     }
   });
 
-  setInteractButtonVisible(anyNear);
+  requestInteractButton("npc", anyNear);
 }
 
 window.addEventListener("keydown", e => {

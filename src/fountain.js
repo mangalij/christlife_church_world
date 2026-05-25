@@ -1,7 +1,7 @@
 // Fountain interaction — pressing E near the courtyard fountain opens the
 // Noah's Ark storm-survival minigame.
 import { openNoahsArk } from "./minigames/noahsArk.js";
-import { setInteractButtonVisible } from "./player.js";
+import { requestInteractButton } from "./player.js";
 import { showToast } from "./ui.js";
 
 const PROMPT_RADIUS = 2.6;
@@ -51,8 +51,8 @@ export function updateFountain() {
   const near = atFountain();
   if (near === _wasNear) return;
   _wasNear = near;
+  requestInteractButton("fountain", near);
   if (near) {
-    setInteractButtonVisible(true);
     if (_btnLabel) _btnLabel.textContent = "Board the Ark (E)";
   } else if (_btnLabel && _btnLabel.textContent === "Board the Ark (E)") {
     _btnLabel.textContent = _origLabel || "Interact (E)";

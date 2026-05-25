@@ -3,6 +3,7 @@
 // short eating animation (arm raised to mouth, head bobbing as if chewing),
 // awards XP, and respawns the food a little later.
 import * as THREE from "three";
+import { requestInteractButton } from "./player.js";
 
 const TABLES = [
   [-32, -15],
@@ -119,6 +120,11 @@ export function updateFood(delta) {
     if (d2 < bestD) { bestD = d2; best = f; }
   }
   _nearest = best;
+
+  // Mobile: register a vote for the shared interact button so a tap can
+  // pick up nearby food (the food module's own touchstart handler runs
+  // `startEating` when invoked).
+  requestInteractButton("food", !!(_nearest && !_eating && !window.__nearNPC));
 
   // Show / hide hint
   if (_nearest && !_eating) {

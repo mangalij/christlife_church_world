@@ -26,7 +26,7 @@ import * as THREE from "three";
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import { showToast, openMinigameModal } from "./ui.js";
 import { addXP, addMember, spendXP, getXP } from "./growth.js";
-import { setHolyButtonVisible, setInteractButtonVisible } from "./player.js";
+import { setHolyButtonVisible, requestInteractButton } from "./player.js";
 
 const KEY_CAUGHT = "clw_wolves_caught";
 
@@ -266,9 +266,9 @@ function updateTithePrompt() {
     nearOfferingBox();
   div.style.display = show ? "block" : "none";
   // Mirror prompt visibility to the mobile contextual E button so phone
-  // players can actually open the tithe menu. npc.js owns the button
-  // when an NPC is nearby, so we only claim it otherwise.
-  if (!window.__nearNPC) setInteractButtonVisible(show);
+  // players can actually open the tithe menu. We register our own vote
+  // so other systems (NPC, garden, pet, etc.) keep theirs.
+  requestInteractButton("tithe", show && !window.__nearNPC);
 }
 
 // ---- Tithe menu ----------------------------------------------------

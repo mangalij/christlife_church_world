@@ -180,6 +180,19 @@ function ensureStyles() {
     }
     #visit-church-btn:hover:not(:disabled) { background: #7C3AED; color: #fff; }
 
+    /* On mobile the top-right corner is occupied by the action-button row
+       (✨ ⚡ 👁 👥 💬) in landscape, so dock the Visit button to the
+       top-LEFT instead — just below the HUD bar — where nothing else
+       lives. Keep it readable but a touch more compact. */
+    @media (max-width: 768px), (max-height: 560px) {
+      #visit-church-btn {
+        top: calc(44px + env(safe-area-inset-top));
+        right: auto;
+        left: calc(10px + env(safe-area-inset-left));
+        padding: 6px 10px; font-size: 12px;
+      }
+    }
+
     #visit-banner {
       position: absolute; top: 50px; left: 50%; transform: translateX(-50%);
       z-index: 12; display: flex; align-items: center; gap: 12px;

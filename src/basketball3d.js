@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { showToast } from "./ui.js";
 import { addXP } from "./growth.js";
-import { setInteractButtonVisible } from "./player.js";
+import { requestInteractButton } from "./player.js";
 
 // 3D basketball: walk up, press E to pick up. While held, the ball floats
 // above the player's right shoulder and a "Shoot" prompt appears. Press E
@@ -295,7 +295,7 @@ export function updateBasketball(delta) {
   const showButton = _state === "held" || (_state === "rest" && nearBall() && !window.__nearNPC);
   if (showButton !== _proximityForButton) {
     _proximityForButton = showButton;
-    if (showButton) setInteractButtonVisible(true);
+    requestInteractButton("basketball", showButton);
   }
   if (_interactLabel) {
     if (_state === "held") {

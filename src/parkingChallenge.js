@@ -13,6 +13,7 @@
 //     successful park; turns red briefly on timeout.
 
 import * as THREE from "three";
+import { requestInteractButton } from "./player.js";
 import { showToast } from "./ui.js";
 import { addXP, addMember } from "./growth.js";
 import { isDriving, getActiveCar } from "./vehicle.js";
@@ -375,6 +376,9 @@ export function updateParkingChallenge(delta) {
 
   // Prompt
   const prompt = ensurePrompt();
+  // Mobile: register a vote for the interact button so a tap can start
+  // (or — if already running — interact with) the challenge.
+  requestInteractButton("parking", nearSign() && _state !== "active" && !window.__nearNPC);
   if (nearSign() && _state !== "active") {
     prompt.textContent = isDriving()
       ? "🅿️ Press E to start the Parking Challenge"

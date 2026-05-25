@@ -11,6 +11,7 @@
 import * as THREE from "three";
 import { showToast, openMinigameModal } from "./ui.js";
 import { addXP } from "./growth.js";
+import { requestInteractButton } from "./player.js";
 
 const STORAGE = "clw_pet";
 const POST_POS = new THREE.Vector3(-58, 0, -7); // near the garden's NW corner
@@ -434,8 +435,11 @@ export function updatePet(delta) {
   // Prompt management
   const prompt = ensurePostPrompt();
   const isOpenModal = document.getElementById("minigame-modal")?.style.display === "flex";
-  if (isOpenModal || window.__nearNPC) { prompt.style.display = "none"; return; }
-  if (nearPost(_player.group.position)) {
+  const showPost = !isOpenModal && !window.__nearNPC && nearPost(_player.group.position);
+  // Mobile: register a vote for the interact button so phone players can
+  // open the adoption / pet panel by tapping E.
+  requestInteractButton("pet", showPost);
+  if (showPost) {
     prompt.textContent = _state?.adopted
       ? `🐾 Press E for ${_state.name}`
       : "🐾 Press E to adopt a pet";

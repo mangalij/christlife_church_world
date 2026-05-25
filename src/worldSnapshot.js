@@ -33,6 +33,16 @@ export const SNAPSHOT_KEYS = [
   "clw_faith_last_level",
 ];
 
+// Identity keys — these belong to the PLAYER, not the church. They're still
+// published in the snapshot (so the visit panel can show the host's name +
+// shirt color), but they must NOT overwrite the visitor's identity when
+// applying a remote snapshot, or the visitor would briefly "become" the
+// host (same name, same outfit) for the duration of the visit.
+const IDENTITY_KEYS = new Set([
+  "clw_character",   // name, church name, appearance, hand item
+  "clw_outfit",      // equipped outfit
+]);
+
 // Session-storage keys used by the visit flow
 const VISIT_FLAG_KEY    = "clw_visiting";        // { hostUid, hostName, churchName }
 const VISIT_BACKUP_KEY  = "clw_visit_backup";    // map of original localStorage values
@@ -172,8 +182,12 @@ export async function beginVisit(hostUid, hostMetaHint = {}) {
   const backup = serializeFromLocalStorage();
   sessionStorage.setItem(VISIT_BACKUP_KEY, JSON.stringify(backup));
 
-  // 2. Overwrite localStorage with host snapshot
-  applySnapshotToLocalStorage(remote.state);
+  // 2. Overwrite localStorage with host snapshot — but PRESERVE the
+  //    visitor's identity keys (name, church, appearance, outfit) so they
+  //    stay themselves while exploring the host's world.
+  const stateToApply = { ...remote.state };
+  for (const k of IDENTITY_KEYS) delete stateToApply[k];
+  applySnapshotToLocalStorage(stateToApply);
 
   // 3. Mark visit mode
   const meta = remote.meta || {};

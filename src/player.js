@@ -184,9 +184,39 @@ export function setDrivingControlsVisible(visible) {
   if (jump)  jump.style.display  = visible ? "none" : "flex";
 }
 
-export function setInteractButtonVisible(visible) {
+// ---- Mobile interact-button visibility (vote-based) -------------------
+// Many systems (NPC, garden, playground, pet, sitting, baptism, fountain,
+// basketball, wolves, parking, babel, food) want to show the same mobile
+// "E" button when the player is near something they own. If only one of
+// them controls the button (the old behavior — npc.js setting it to
+// false every frame when no NPC was nearby), all the others silently
+// lost their mobile entry point. We now keep a Set of active "voters":
+// the button is visible whenever ANY system is requesting it.
+const _interactRequesters = new Set();
+function _applyInteractVisibility() {
   const btn = document.getElementById("btn-interact");
-  if (btn) btn.style.display = visible ? "flex" : "none";
+  if (!btn) return;
+  btn.style.display = _interactRequesters.size > 0 ? "flex" : "none";
+}
+
+/**
+ * Request that the mobile interact button be shown for a given source.
+ * Pass `visible=false` (or call with the same sourceId next frame with
+ * `false`) to release the request. Multiple sources can request at once.
+ */
+export function requestInteractButton(sourceId, visible) {
+  if (visible) _interactRequesters.add(sourceId);
+  else         _interactRequesters.delete(sourceId);
+  _applyInteractVisibility();
+}
+
+/**
+ * Legacy single-source toggle. Kept so older callers still work, but
+ * routed through the vote system under a dedicated "_default" key so it
+ * can't stomp other systems' requests.
+ */
+export function setInteractButtonVisible(visible) {
+  requestInteractButton("_default", visible);
 }
 
 export function setHolyButtonVisible(visible) {
